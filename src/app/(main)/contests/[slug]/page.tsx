@@ -303,52 +303,43 @@ export default async function ContestDetailPage({ params }: Props) {
         </section>
       )}
 
-      <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-card">
-        <h2 className="text-lg font-bold text-gray-900 mb-4">상세 페이지 필드</h2>
-        <ul className="space-y-1.5 text-sm text-gray-700">
-          <li>
-            <span className="font-semibold">title:</span> {contest.title}
-          </li>
-          <li>
-            <span className="font-semibold">organizer:</span> {contest.organizer || "미정"}
-          </li>
-          <li>
-            <span className="font-semibold">apply_end_at:</span> {contest.apply_end_at || "미정"}
-          </li>
-          <li>
-            <span className="font-semibold">source_site:</span> {contest.source_site || "미정"}
-          </li>
-          <li>
-            <span className="font-semibold">source_url:</span>{" "}
-            {contest.source_url ? (
-              <a
-                href={contest.source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline break-all"
-              >
-                {contest.source_url}
-              </a>
-            ) : (
-              "없음"
-            )}
-          </li>
-          <li>
-            <span className="font-semibold">official_source_url:</span>{" "}
-            {contest.official_source_url ? (
-              <a
-                href={contest.official_source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:underline break-all"
-              >
-                {contest.official_source_url}
-              </a>
-            ) : (
-              "없음"
-            )}
-          </li>
-        </ul>
+      {process.env.NEXT_PUBLIC_SHOW_DEBUG_FIELDS === "true" && (
+        <section className="rounded-2xl border border-amber-100 bg-amber-50 p-6 shadow-sm">
+          <h2 className="text-sm font-bold text-amber-700 mb-3">[DEBUG] 상세 페이지 필드</h2>
+          <ul className="space-y-1.5 text-sm text-gray-700 font-mono">
+            <li><span className="font-semibold">title:</span> {contest.title}</li>
+            <li><span className="font-semibold">organizer:</span> {contest.organizer || "미정"}</li>
+            <li><span className="font-semibold">apply_end_at:</span> {contest.apply_end_at || "미정"}</li>
+            <li><span className="font-semibold">source_site:</span> {contest.source_site || "미정"}</li>
+            <li>
+              <span className="font-semibold">source_url:</span>{" "}
+              {contest.source_url ? (
+                <a href={contest.source_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
+                  {contest.source_url}
+                </a>
+              ) : "없음"}
+            </li>
+            <li>
+              <span className="font-semibold">official_source_url:</span>{" "}
+              {contest.official_source_url ? (
+                <a href={contest.official_source_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
+                  {contest.official_source_url}
+                </a>
+              ) : "없음"}
+            </li>
+          </ul>
+        </section>
+      )}
+
+      {/* 플랫폼 안내 */}
+      <section className="rounded-2xl border border-blue-50 bg-blue-50/40 px-5 py-4 text-sm text-gray-600 leading-relaxed">
+        공모전집은 공고 정보를 모아서 제공하는 플랫폼입니다.{" "}
+        <strong className="text-gray-800">참가 신청은 각 공고의 공식 사이트에서 직접 진행</strong>해 주세요.
+        공고 정보 수정·삭제 요청은{" "}
+        <Link href="/contact" className="text-blue-600 hover:underline font-semibold">
+          문의 페이지
+        </Link>
+        를 이용해 주세요.
       </section>
 
       <section>

@@ -17,10 +17,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // ── 정적 페이지 ────────────────────────────────────────────
   const staticPages: MetadataRoute.Sitemap = [
-    { url: BASE_URL,                       lastModified: now, changeFrequency: "daily",  priority: 1.0 },
-    { url: `${BASE_URL}/contests`,         lastModified: now, changeFrequency: "hourly", priority: 0.9 },
-    { url: `${BASE_URL}/deadline-soon`,     lastModified: now, changeFrequency: "hourly", priority: 0.8 },
-    { url: `${BASE_URL}/latest`,           lastModified: now, changeFrequency: "hourly", priority: 0.8 },
+    { url: BASE_URL,                        lastModified: now, changeFrequency: "daily",   priority: 1.0 },
+    { url: `${BASE_URL}/contests`,          lastModified: now, changeFrequency: "hourly",  priority: 0.9 },
+    { url: `${BASE_URL}/deadline-soon`,     lastModified: now, changeFrequency: "hourly",  priority: 0.8 },
+    { url: `${BASE_URL}/latest`,            lastModified: now, changeFrequency: "hourly",  priority: 0.8 },
+    // 신뢰/정책 페이지 (/adsense-readiness 는 noindex이므로 제외)
+    { url: `${BASE_URL}/about`,             lastModified: now, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${BASE_URL}/privacy`,           lastModified: now, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${BASE_URL}/terms`,             lastModified: now, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${BASE_URL}/contact`,           lastModified: now, changeFrequency: "monthly", priority: 0.4 },
   ];
 
   // ── 유형별 페이지 /type/[type] ─────────────────────────────
