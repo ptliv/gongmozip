@@ -1,0 +1,20 @@
+{
+  "base_url": "https://gongmozip.com",
+  "checks": {
+    "robots_accessible": true,
+    "robots_has_sitemap": true,
+    "robots_disallow_admin": false,
+    "sitemap_accessible": true,
+    "deadline_in_sitemap": false,
+    "deadline_soon_excluded": false,
+    "list_canonical_ok": false,
+    "detail_canonical_ok": false
+  },
+  "detail_path": "/contests/2026-acp-world-championship-국가-대표-선발-공모전-campuspick-32310",
+  "list_canonical": null,
+  "detail_canonical": null,
+  "errors": [
+    "/contests/2026-acp-world-championship-국가-대표-선발-공모전-campuspick-32310 status=N/A"
+  ],
+  "overall": false
+}

@@ -163,6 +163,13 @@ export interface Contest {
   // 출처 URL
   official_source_url: string;
   aggregator_source_url: string | null;
+  source_site?: string | null;
+  source_url?: string | null;
+  official_url?: string | null;
+  external_id?: string | null;
+  raw_payload?: Record<string, unknown> | null;
+  crawled_at?: string | null;
+  is_verified?: boolean;
 
   // 메타
   verified_level: VerifiedLevel;

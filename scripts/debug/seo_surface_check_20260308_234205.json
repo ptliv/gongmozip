@@ -1,0 +1,20 @@
+{
+  "base_url": "https://gongmozip.com",
+  "checks": {
+    "robots_accessible": true,
+    "robots_has_sitemap": true,
+    "robots_disallow_admin": false,
+    "sitemap_accessible": true,
+    "deadline_in_sitemap": false,
+    "deadline_soon_excluded": false,
+    "list_canonical_ok": false,
+    "detail_canonical_ok": false
+  },
+  "detail_path": "/contests/2026년-제주물-세계포럼-국민-물-콘텐츠-공모전-모집-campuspick-32536",
+  "list_canonical": null,
+  "detail_canonical": null,
+  "errors": [
+    "/contests/2026년-제주물-세계포럼-국민-물-콘텐츠-공모전-모집-campuspick-32536 status=404"
+  ],
+  "overall": false
+}

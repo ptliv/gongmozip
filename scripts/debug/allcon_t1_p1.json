@@ -1,0 +1,178 @@
+{
+  "sql": "SELECT C.cl_srl, C.cl_type, C.cl_cate, C.mb_id, C.cl_name, C.cl_title, C.cl_host, C.cl_start_date, C.cl_end_date, C.cl_target,\n                C.cl_status, C.cl_dday, C.cl_reg_date, A.ad_srl, C.cl_update,\n\t\t\t\t\t\t\t\t(SELECT SUM(cv_visit) FROM a2_contest_visit WHERE cl_srl = C.cl_srl) AS cl_view\n            FROM a2_ad_list A LEFT JOIN a2_contest_list C\n                ON A.cl_srl = C.cl_srl\n            WHERE C.cl_status > 0 AND C.cl_disp = 1 AND C.cl_type IN (1,3) AND C.cl_reserve_date < '2026-03-08 18:52:42' /*AND A.ad_status = 2*/ AND A.ad_code = 'BOT'\n            AND A.ad_st < '2026-03-08 18:52:42' AND A.ad_et > '2026-03-08 18:52:42'  AND (C.cl_target & 399 ) > 0  order by A.ad_order asc, A.ad_et desc",
+  "currentPage": 1,
+  "totalPage": 11,
+  "totalCount": 129,
+  "perPage": 10,
+  "rows": [
+    {
+      "cl_srl": "534475",
+      "cl_cate": "<span class=\"badge cl_cate\">아이디어·창업·마케팅·네이밍</span><span class=\"badge cl_cate\">사진·영상</span><span class=\"badge cl_cate\">과학·공학·학술</span><span class=\"badge cl_cate\">제한없음</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-84",
+      "cl_view": "4894",
+      "cl_title": "<a href='/hit/contest/3843?page=1&sortname=cl_order&sortorder=asc&t=1&ct=&sc=&tg='>2026 대한민국 AI 콘텐츠 페스티벌</a>",
+      "cl_date": "26.02.12~26.05.31",
+      "cl_host": "(주)초록뱀미디어, (…",
+      "cl_is_star": "1"
+    },
+    {
+      "cl_srl": "534351",
+      "cl_cate": "<span class=\"badge cl_cate\">아이디어·창업·마케팅·네이밍</span><span class=\"badge cl_cate\">제한없음</span>",
+      "cl_status": "<span class='badge cl_status3'>오늘마감</span><br>D-0",
+      "cl_view": "5386",
+      "cl_title": "<a href='/hit/contest/3823?page=1&sortname=cl_order&sortorder=asc&t=1&ct=&sc=&tg='>KT 모두의 캔버스 공모</a>",
+      "cl_date": "26.02.13~26.03.08",
+      "cl_host": "KT",
+      "cl_is_star": "1"
+    },
+    {
+      "cl_srl": "533309",
+      "cl_cate": "<span class=\"badge cl_cate\">아이디어·창업·마케팅·네이밍</span><span class=\"badge cl_cate\">제한없음</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-38",
+      "cl_view": "13468",
+      "cl_title": "<a href='/hit/contest/3718?page=1&sortname=cl_order&sortorder=asc&t=1&ct=&sc=&tg='>'모두의 아이디어 공모' 캠페인</a>",
+      "cl_date": "26.01.08~26.04.15",
+      "cl_host": "지식재산처",
+      "cl_is_star": "1"
+    },
+    {
+      "cl_srl": "534800",
+      "cl_type_str": "공모전",
+      "cl_cate": "<span class=\"badge cl_cate\">아이디어·창업·마케팅·네이밍</span><span class=\"badge cl_cate\">제한없음</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-9",
+      "cl_view": "187",
+      "cl_title": "<a href='/view/contest/534800?page=1&sortname=cl_order&sortorder=asc&t=1&ct=&sc=&tg='>ELORÉ 엘로레 스토리 공모전</a>",
+      "cl_date": "26.03.03~26.03.17",
+      "cl_host": "ELORÉ ",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534796",
+      "cl_type_str": "공모전",
+      "cl_cate": "<span class=\"badge cl_cate\">아이디어·창업·마케팅·네이밍</span><span class=\"badge cl_cate\">디자인·그림·웹툰</span><span class=\"badge cl_cate\">제한없음</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-40",
+      "cl_view": "72",
+      "cl_title": "<a href='/view/contest/534796?page=1&sortname=cl_order&sortorder=asc&t=1&ct=&sc=&tg='>생활 속 목재이용 국민참여 공모전 목재 공감(共感) 키트</a>",
+      "cl_date": "26.03.03~26.04.17",
+      "cl_host": "목재문화진흥회",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534788",
+      "cl_type_str": "공모전",
+      "cl_cate": "<span class=\"badge cl_cate\">아이디어·창업·마케팅·네이밍</span><span class=\"badge cl_cate\">제한없음</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-4",
+      "cl_view": "199",
+      "cl_title": "<a href='/view/contest/534788?page=1&sortname=cl_order&sortorder=asc&t=1&ct=&sc=&tg='>K-ICT 빅데이터센터 새 이름 공모전</a>",
+      "cl_date": "26.03.03~26.03.12",
+      "cl_host": "한국지능정보사회진흥원(…",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534785",
+      "cl_type_str": "공모전",
+      "cl_cate": "<span class=\"badge cl_cate\">아이디어·창업·마케팅·네이밍</span><span class=\"badge cl_cate\">과학·공학·학술</span><span class=\"badge cl_cate\">일반인</span><span class=\"badge cl_cate\">대학생</span><span class=\"badge cl_cate\">대학원생</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-145",
+      "cl_view": "84",
+      "cl_title": "<a href='/view/contest/534785?page=1&sortname=cl_order&sortorder=asc&t=1&ct=&sc=&tg='>2026년 제13회 유닛로드시스템 창의성 공모전</a>",
+      "cl_date": "26.03.01~26.07.31",
+      "cl_host": "(사)한국파렛트컨테이너…",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534777",
+      "cl_type_str": "공모전",
+      "cl_cate": "<span class=\"badge cl_cate\">디자인·그림·웹툰</span><span class=\"badge cl_cate\">대학생</span><span class=\"badge cl_cate\">기타</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-17",
+      "cl_view": "151",
+      "cl_title": "<a href='/view/contest/534777?page=1&sortname=cl_order&sortorder=asc&t=1&ct=&sc=&tg='>짐빔 디자인 공모전</a>",
+      "cl_date": "26.03.03~26.03.25",
+      "cl_host": "빔산토리코리아 유한회사",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534772",
+      "cl_type_str": "공모전",
+      "cl_cate": "<span class=\"badge cl_cate\">사진·영상</span><span class=\"badge cl_cate\">대학생</span><span class=\"badge cl_cate\">대학원생</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-26",
+      "cl_view": "84",
+      "cl_title": "<a href='/view/contest/534772?page=1&sortname=cl_order&sortorder=asc&t=1&ct=&sc=&tg='>폭스바겐 골프 GTI 대학생 AI 영상 광고 공모전</a>",
+      "cl_date": "26.03.03~26.04.03",
+      "cl_host": "폭스바겐코리아",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534767",
+      "cl_type_str": "공모전",
+      "cl_cate": "<span class=\"badge cl_cate\">아이디어·창업·마케팅·네이밍</span><span class=\"badge cl_cate\">과학·공학·학술</span><span class=\"badge cl_cate\">대학생</span><span class=\"badge cl_cate\">대학원생</span><span class=\"badge cl_cate\">고등학생</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-53",
+      "cl_view": "238",
+      "cl_title": "<a href='/view/contest/534767?page=1&sortname=cl_order&sortorder=asc&t=1&ct=&sc=&tg='>2026 엔지니어링산업 경진대회</a>",
+      "cl_date": "26.03.03~26.04.30",
+      "cl_host": "산업통상부",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534753",
+      "cl_type_str": "공모전",
+      "cl_cate": "<span class=\"badge cl_cate\">아이디어·창업·마케팅·네이밍</span><span class=\"badge cl_cate\">대학생</span><span class=\"badge cl_cate\">대학원생</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-54",
+      "cl_view": "90",
+      "cl_title": "<a href='/view/contest/534753?page=1&sortname=cl_order&sortorder=asc&t=1&ct=&sc=&tg='>무/통/대/첩 2026 제1회 무역통계 활용·분석 경진대회</a>",
+      "cl_date": "26.03.03~26.05.01",
+      "cl_host": "관세청",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534748",
+      "cl_type_str": "공모전",
+      "cl_cate": "<span class=\"badge cl_cate\">사진·영상</span><span class=\"badge cl_cate\">디자인·그림·웹툰</span><span class=\"badge cl_cate\">문학·학술</span><span class=\"badge cl_cate\">제한없음</span>",
+      "cl_status": "<span class='badge cl_status1'>접수예정</span><br>D-71",
+      "cl_view": "137",
+      "cl_title": "<a href='/view/contest/534748?page=1&sortname=cl_order&sortorder=asc&t=1&ct=&sc=&tg='>제6회 해외에서 겪은 사건사고 경험담 수기, 인스타툰, 동영상</a>",
+      "cl_date": "26.03.16~26.05.18",
+      "cl_host": "외교부",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534745",
+      "cl_type_str": "공모전",
+      "cl_cate": "<span class=\"badge cl_cate\">사진·영상</span><span class=\"badge cl_cate\">중학생</span><span class=\"badge cl_cate\">고등학생</span><span class=\"badge cl_cate\">기타</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-146",
+      "cl_view": "131",
+      "cl_title": "<a href='/view/contest/534745?page=1&sortname=cl_order&sortorder=asc&t=1&ct=&sc=&tg='>블루카이트 필름 컨테스트 대회</a>",
+      "cl_date": "26.03.01~26.08.01",
+      "cl_host": "블루카이트 출판사",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534744",
+      "cl_type_str": "공모전",
+      "cl_cate": "<span class=\"badge cl_cate\">문학·학술</span><span class=\"badge cl_cate\">일반인</span><span class=\"badge cl_cate\">대학생</span><span class=\"badge cl_cate\">대학원생</span><span class=\"badge cl_cate\">중학생</span><span class=\"badge cl_cate\">고등학생</span><span class=\"badge cl_cate\">주부 및 영유아</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-84",
+      "cl_view": "195",
+      "cl_title": "<a href='/view/contest/534744?page=1&sortname=cl_order&sortorder=asc&t=1&ct=&sc=&tg='>[밀리의서재] 2026 밀리로드 출간 공모전 시즌 2</a>",
+      "cl_date": "26.03.01~26.05.31",
+      "cl_host": "밀리의서재",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534727",
+      "cl_type_str": "공모전",
+      "cl_cate": "<span class=\"badge cl_cate\">문학·학술</span><span class=\"badge cl_cate\">일반인</span><span class=\"badge cl_cate\">대학생</span><span class=\"badge cl_cate\">대학원생</span><span class=\"badge cl_cate\">기타</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-18",
+      "cl_view": "103",
+      "cl_title": "<a href='/view/contest/534727?page=1&sortname=cl_order&sortorder=asc&t=1&ct=&sc=&tg='>노벨피아 2026 신작 챌린지 스텝업</a>",
+      "cl_date": "26.02.26~26.03.26",
+      "cl_host": "(주)메타크래프트",
+      "cl_is_star": "0"
+    }
+  ],
+  "para": {
+    "t": "1",
+    "page": "1",
+    "sortname": "cl_order",
+    "sortorder": "asc",
+    "dataRows": "15"
+  }
+}

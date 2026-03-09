@@ -34,7 +34,7 @@ export function CTASection() {
               <ArrowRight className="w-4 h-4" />
             </Link>
             <Link
-              href="/contests?sort=deadline"
+              href="/deadline"
               className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/15 border border-white/20 text-white text-sm font-semibold hover:bg-white/25 active:scale-95 transition-all backdrop-blur-sm"
             >
               마감 임박 공고

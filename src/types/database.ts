@@ -45,6 +45,13 @@ export interface ContestRow {
   benefit: { prize?: string; types: BenefitType[] }; // jsonb
   official_source_url: string;
   aggregator_source_url: string | null;
+  source_site?: string | null;
+  source_url?: string | null;
+  official_url?: string | null;
+  external_id?: string | null;
+  raw_payload?: Record<string, unknown> | null;
+  crawled_at?: string | null;
+  is_verified?: boolean;
   verified_level: VerifiedLevel;     // smallint 0-3
   view_count: number;                // integer
   created_at: string;                // timestamptz → ISO string

@@ -1,0 +1,18 @@
+{
+  "base_url": "https://gongmozip.com",
+  "checks": {
+    "robots_accessible": true,
+    "robots_has_sitemap": true,
+    "robots_disallow_admin": false,
+    "sitemap_accessible": true,
+    "deadline_in_sitemap": false,
+    "deadline_soon_excluded": false,
+    "list_canonical_ok": false,
+    "detail_canonical_ok": false
+  },
+  "detail_path": "/contests/my-kpop-star-allcon-534562",
+  "list_canonical": null,
+  "detail_canonical": null,
+  "errors": [],
+  "overall": false
+}

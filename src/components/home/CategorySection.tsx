@@ -1,5 +1,7 @@
 import Link from "next/link";
-import { ContestType } from "@/types/contest";
+import { ContestType, CONTEST_CATEGORIES } from "@/types/contest";
+import { slugifyContestTitle } from "@/lib/slug";
+import type { FacetOption } from "@/lib/supabase/public-contest-queries";
 
 interface TypeItem {
   label: ContestType;
@@ -68,7 +70,25 @@ const TYPE_ITEMS: TypeItem[] = [
   },
 ];
 
-export function CategorySection() {
+const FEATURED_CATEGORIES = CONTEST_CATEGORIES.slice(0, 6);
+
+interface CategorySectionProps {
+  featuredFields?: FacetOption[];
+  featuredTargets?: FacetOption[];
+}
+
+export function CategorySection({
+  featuredFields = [],
+  featuredTargets = [],
+}: CategorySectionProps) {
+  const defaultFields = ["IT·테크", "디자인", "마케팅·광고", "경영·경제"]
+    .map((label) => ({ slug: slugifyContestTitle(label), label, count: 0 }));
+  const defaultTargets = ["대학생", "대학원생", "청년", "일반인"]
+    .map((label) => ({ slug: slugifyContestTitle(label), label, count: 0 }));
+
+  const fieldLinks = (featuredFields.length > 0 ? featuredFields : defaultFields).slice(0, 6);
+  const targetLinks = (featuredTargets.length > 0 ? featuredTargets : defaultTargets).slice(0, 6);
+
   return (
     <section className="py-12">
       <div className="section-header">
@@ -99,6 +119,61 @@ export function CategorySection() {
             </div>
           </Link>
         ))}
+      </div>
+
+      <div className="mt-6 flex flex-wrap items-center gap-2.5">
+        <span className="text-xs font-semibold text-gray-500">대표 카테고리</span>
+        {FEATURED_CATEGORIES.map((category) => (
+          <Link
+            key={category}
+            href={`/categories/${slugifyContestTitle(category)}`}
+            className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium text-gray-700 bg-gray-100 border border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+          >
+            {category}
+          </Link>
+        ))}
+      </div>
+
+      <div className="mt-4 flex flex-wrap items-center gap-2.5">
+        <span className="text-xs font-semibold text-gray-500">분야별 보기</span>
+        {fieldLinks.map((item) => (
+          <Link
+            key={`field-${item.slug}`}
+            href={`/field/${item.slug}`}
+            className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium text-blue-700 bg-blue-50 border border-blue-100 hover:bg-blue-100 transition-colors"
+          >
+            {item.label}
+          </Link>
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2.5">
+        <span className="text-xs font-semibold text-gray-500">대상별 보기</span>
+        {targetLinks.map((item) => (
+          <Link
+            key={`target-${item.slug}`}
+            href={`/target/${item.slug}`}
+            className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium text-violet-700 bg-violet-50 border border-violet-100 hover:bg-violet-100 transition-colors"
+          >
+            {item.label}
+          </Link>
+        ))}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2.5">
+        <span className="text-xs font-semibold text-gray-500">바로가기</span>
+        <Link
+          href="/bookmarks"
+          className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium text-gray-700 bg-gray-100 border border-gray-200 hover:bg-gray-50 transition-colors"
+        >
+          북마크
+        </Link>
+        <Link
+          href="/deadline/7days"
+          className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium text-rose-700 bg-rose-50 border border-rose-100 hover:bg-rose-100 transition-colors"
+        >
+          7일 내 마감
+        </Link>
       </div>
     </section>
   );

@@ -49,7 +49,7 @@ export function Footer() {
             <ul className="space-y-2.5">
               {[
                 { label: "공고 검색", href: "/contests" },
-                { label: "마감 임박", href: "/contests?sort=deadline" },
+                { label: "마감 임박", href: "/deadline" },
                 { label: "최신 공고", href: "/contests?sort=latest" },
               ].map((link) => (
                 <li key={link.href}>

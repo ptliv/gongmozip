@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
+import { getSiteUrl } from "@/lib/seo";
 import "./globals.css";
 
+const SITE_URL = getSiteUrl();
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     default: "공모전집 | 공모전·대외활동·인턴십 정보 플랫폼",
     template: "%s | 공모전집",
@@ -13,6 +17,7 @@ export const metadata: Metadata = {
     title: "공모전집 | 공모전·대외활동·인턴십 정보 플랫폼",
     description:
       "공모전, 대외활동, 인턴십 정보를 한곳에서 찾는 플랫폼 공모전집. 대학생 공모전과 마감 임박 공고를 빠르게 확인하세요.",
+    url: SITE_URL,
     siteName: "공모전집",
     locale: "ko_KR",
     type: "website",

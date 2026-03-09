@@ -5,7 +5,15 @@
       "Bash(npx create-next-app@latest:*)",
       "Bash(npm install:*)",
       "Bash(npm run:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(python3:*)",
+      "Bash(python:*)",
+      "Bash(pip3 install:*)",
+      "Bash(pip3 list:*)",
+      "Bash(ls:*)",
+      "Bash(wait:*)",
+      "Bash(curl:*)",
+      "Bash(pkill:*)"
     ]
   }
 }

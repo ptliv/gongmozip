@@ -1,56 +1,68 @@
-/**
- * contests 테이블 CRUD 함수 모음
- *
- * 현재 더미 데이터 → Supabase 전환 매핑:
- *
- *   DUMMY_CONTESTS                               → fetchContests()
- *   DUMMY_CONTESTS.find(c => c.slug === slug)    → fetchContestBySlug(slug)
- *   DUMMY_CONTESTS.find(c => c.id === id)        → fetchContestById(id)
- *   console.log("[ContestForm] 저장:", values)   → upsertContest(values, id?)
- *
- * 모든 함수는 Server Component / Server Action에서 호출합니다.
- *
- * NOTE: supabase-js 제네릭은 `supabase gen types typescript`로 자동 생성한
- *       Database 타입과 함께 사용할 때 완전히 동작합니다. 현재는 수동 타입을
- *       사용하므로 일부 구간에서 명시적 타입 캐스팅을 사용합니다.
- */
-
-import { createServerClient, createAdminClient } from "./server";
+import { createAdminClient, createServerClient } from "./server";
 import type { Contest, ContestFilter } from "@/types/contest";
-import type { ContestInsert, ContestUpdate, ContestRow } from "@/types/database";
+import type { ContestInsert, ContestRow, ContestUpdate } from "@/types/database";
+import {
+  buildContestSlug,
+  getContestSlug,
+  getSlugCandidates,
+  normalizeIncomingSlug,
+  parseContestSlugSuffix,
+} from "@/lib/slug";
 
-// ----------------------------------------------------------
-// 내부 헬퍼
-// ----------------------------------------------------------
+const CONTEST_SELECT = `
+  id, slug, title, organizer, summary, description, poster_image_url,
+  type, category, field, target, region, online_offline, team_allowed,
+  apply_start_at, apply_end_at, status, benefit,
+  official_source_url, aggregator_source_url,
+  source_site, source_url, official_url, external_id, raw_payload, crawled_at, is_verified,
+  verified_level, view_count, created_at, updated_at
+`;
 
-function rowToContest(row: ContestRow): Contest {
+export function normalizeContestRow(row: Partial<ContestRow>): Contest {
   return {
-    ...row,
-    // date 컬럼은 Supabase가 ISO string으로 반환하므로 그대로 사용
-    apply_start_at: row.apply_start_at,
-    apply_end_at: row.apply_end_at,
+    id: String(row.id ?? ""),
+    slug: getContestSlug({
+      slug: (row.slug as string | null) ?? null,
+      title: (row.title as string | null) ?? null,
+      source_site: (row.source_site as string | null) ?? null,
+      external_id: (row.external_id as string | null) ?? null,
+    }),
+    title: String(row.title ?? ""),
+    organizer: String(row.organizer ?? "미상"),
+    summary: String(row.summary ?? row.title ?? ""),
+    description: String(row.description ?? row.summary ?? row.title ?? ""),
+    poster_image_url: (row.poster_image_url as string | null) ?? null,
+    type: row.type as Contest["type"],
+    category: row.category as Contest["category"],
+    field: row.field as Contest["field"],
+    target: (row.target as Contest["target"]) ?? [],
+    region: row.region as Contest["region"],
+    online_offline: row.online_offline as Contest["online_offline"],
+    team_allowed: Boolean(row.team_allowed),
+    apply_start_at: String(row.apply_start_at ?? ""),
+    apply_end_at: String(row.apply_end_at ?? ""),
+    status: row.status as Contest["status"],
+    benefit: (row.benefit as Contest["benefit"]) ?? { types: [] },
+    official_source_url: String(row.official_source_url ?? ""),
+    aggregator_source_url: (row.aggregator_source_url as string | null) ?? null,
+    source_site: (row.source_site as string | null) ?? null,
+    source_url: (row.source_url as string | null) ?? null,
+    official_url: (row.official_url as string | null) ?? null,
+    external_id: (row.external_id as string | null) ?? null,
+    raw_payload: (row.raw_payload as Record<string, unknown> | null) ?? null,
+    crawled_at: (row.crawled_at as string | null) ?? null,
+    is_verified: Boolean(row.is_verified),
+    verified_level: Number(row.verified_level ?? 0) as Contest["verified_level"],
+    view_count: Number(row.view_count ?? 0),
+    created_at: String(row.created_at ?? ""),
+    updated_at: String(row.updated_at ?? ""),
   };
 }
 
-// ----------------------------------------------------------
-// 공개 읽기 (anon key + RLS)
-// ----------------------------------------------------------
-
-/**
- * 공고 목록 조회 — ContestFilter를 Supabase query builder로 매핑
- *
- * 기존 applyFilters() 순수 함수의 Supabase 버전.
- * 클라이언트 측 필터링 대신 DB 레벨에서 필터링하므로 성능이 좋습니다.
- */
-export async function fetchContests(
-  filter?: Partial<ContestFilter>
-): Promise<Contest[]> {
+export async function fetchContests(filter?: Partial<ContestFilter>): Promise<Contest[]> {
   const supabase = createServerClient();
 
-  let query = (supabase as any)
-    .from("contests")
-    .select("*")
-    .order("created_at", { ascending: false });
+  let query = (supabase as any).from("contests").select(CONTEST_SELECT);
 
   if (filter?.status && filter.status !== "전체") {
     query = query.eq("status", filter.status);
@@ -68,128 +80,180 @@ export async function fetchContests(
     query = query.eq("online_offline", filter.online_offline);
   }
   if (filter?.target && filter.target !== "전체") {
-    // text[] 컬럼에서 특정 값 포함 여부
     query = query.contains("target", [filter.target]);
   }
   if (filter?.search) {
-    query = query.or(
-      `title.ilike.%${filter.search}%,organizer.ilike.%${filter.search}%`
-    );
+    query = query.or(`title.ilike.%${filter.search}%,organizer.ilike.%${filter.search}%`);
   }
+
   if (filter?.sort_by === "deadline") {
     query = query.order("apply_end_at", { ascending: true });
   } else if (filter?.sort_by === "title") {
     query = query.order("title", { ascending: true });
+  } else {
+    query = query.order("created_at", { ascending: false });
   }
 
   const { data, error } = await query;
-
   if (error) throw new Error(`[fetchContests] ${error.message}`);
-  return ((data ?? []) as ContestRow[]).map(rowToContest);
+  return ((data ?? []) as ContestRow[]).map((row) => normalizeContestRow(row));
 }
 
-/** slug로 단일 공고 조회 — /contests/[slug] 상세 페이지용 */
 export async function fetchContestBySlug(slug: string): Promise<Contest | null> {
   const supabase = createServerClient();
+  const slugCandidates = getSlugCandidates(slug);
 
+  // Step 1: DB slug 컬럼 직접 매칭 (normalized/encoded 후보 포함)
+  for (const candidate of slugCandidates) {
+    const direct = await (supabase as any)
+      .from("contests")
+      .select(CONTEST_SELECT)
+      .eq("slug", candidate)
+      .maybeSingle();
+
+    if (direct.error && direct.error.code !== "PGRST116") {
+      throw new Error(`[fetchContestBySlug] ${direct.error.message}`);
+    }
+    if (direct.data) {
+      return normalizeContestRow(direct.data as ContestRow);
+    }
+  }
+
+  const normalizedCandidates = new Set(
+    slugCandidates.map((candidate) => normalizeIncomingSlug(candidate)).filter(Boolean)
+  );
+  if (normalizedCandidates.size === 0) {
+    return null;
+  }
+
+  // Step 2: slug가 null인 행 전체 조회 → computed slug와 비교
+  // (slug=null 인 공고는 title+source_site+external_id로 슬러그가 동적 생성됨)
+  const { data: nullSlugData, error: nullSlugError } = await (supabase as any)
+    .from("contests")
+    .select(CONTEST_SELECT)
+    .is("slug", null);
+
+  if (nullSlugError && nullSlugError.code !== "PGRST116") {
+    console.error(`[fetchContestBySlug:null-slug] ${nullSlugError.message}`);
+  } else {
+    const nullMatch = ((nullSlugData ?? []) as ContestRow[]).find((row) =>
+      normalizedCandidates.has(getContestSlug(row))
+    );
+    if (nullMatch) return normalizeContestRow(nullMatch);
+  }
+
+  // Step 3: source_site + external_id suffix 추출 후 직접 조회
+  const suffixPairs = Array.from(
+    new Set(
+      slugCandidates
+        .map((candidate) => {
+          const { sourceSite, externalId } = parseContestSlugSuffix(candidate);
+          if (!sourceSite || !externalId) return "";
+          return `${sourceSite}|${externalId}`;
+        })
+        .filter(Boolean)
+    )
+  );
+
+  for (const pair of suffixPairs) {
+    const [sourceSite, externalId] = pair.split("|");
+    if (!sourceSite || !externalId) continue;
+    const fallbackBySuffix = await (supabase as any)
+      .from("contests")
+      .select(CONTEST_SELECT)
+      .eq("source_site", sourceSite)
+      .eq("external_id", externalId)
+      .maybeSingle();
+
+    if (fallbackBySuffix.error && fallbackBySuffix.error.code !== "PGRST116") {
+      throw new Error(`[fetchContestBySlug:fallback:suffix] ${fallbackBySuffix.error.message}`);
+    }
+    if (fallbackBySuffix.data) {
+      return normalizeContestRow(fallbackBySuffix.data as ContestRow);
+    }
+  }
+
+  // Step 4: 비정규화된 non-null slug 행 스캔 (legacy/encoded slug 대응)
+  // null slug는 Step 2에서 처리했으므로 여기서는 non-null만 조회
   const { data, error } = await (supabase as any)
     .from("contests")
-    .select("*")
-    .eq("slug", slug)
-    .single();
+    .select(CONTEST_SELECT)
+    .not("slug", "is", null)
+    .order("updated_at", { ascending: false })
+    .limit(5000);
 
-  if (error?.code === "PGRST116") return null; // not found
-  if (error) throw new Error(`[fetchContestBySlug] ${error.message}`);
-  return rowToContest(data as ContestRow);
+  if (error) {
+    throw new Error(`[fetchContestBySlug:fallback:normalize] ${error.message}`);
+  }
+
+  const match = ((data ?? []) as ContestRow[]).find((row) =>
+    normalizedCandidates.has(getContestSlug(row))
+  );
+
+  return match ? normalizeContestRow(match) : null;
 }
 
-/** id로 단일 공고 조회 — /admin/contests/[id] 편집 페이지용 */
 export async function fetchContestById(id: string): Promise<Contest | null> {
   const supabase = createServerClient();
 
   const { data, error } = await (supabase as any)
     .from("contests")
-    .select("*")
+    .select(CONTEST_SELECT)
     .eq("id", id)
-    .single();
+    .maybeSingle();
 
-  if (error?.code === "PGRST116") return null;
-  if (error) throw new Error(`[fetchContestById] ${error.message}`);
-  return rowToContest(data as ContestRow);
+  if (error && error.code !== "PGRST116") {
+    throw new Error(`[fetchContestById] ${error.message}`);
+  }
+  if (!data) {
+    return null;
+  }
+  return normalizeContestRow(data as ContestRow);
 }
 
-/**
- * 조회수 증가 — 상세 페이지 진입 시 호출
- * SQL 함수: update contests set view_count = view_count + 1 where id = $1
- */
 export async function incrementViewCount(id: string): Promise<void> {
   const supabase = createServerClient();
   await (supabase as any).rpc("increment_view_count", { contest_id: id });
 }
 
-// ----------------------------------------------------------
-// 관리자 쓰기 (service_role key — RLS bypass)
-// ----------------------------------------------------------
-
-/**
- * 공고 생성 또는 수정 (upsert)
- *
- * id가 없으면 insert, 있으면 update.
- *
- * 사용 예 (Server Action):
- *   "use server";
- *   await upsertContest(formValues, contestId);
- */
-export async function upsertContest(
-  values: ContestInsert,
-  id?: string
-): Promise<Contest> {
+export async function upsertContest(values: ContestInsert, id?: string): Promise<Contest> {
   const supabase = createAdminClient();
   const db = supabase as any;
 
   if (id) {
-    const update: ContestUpdate = values;
+    const updatePayload: ContestUpdate = {
+      ...values,
+      slug: values.slug?.trim() ? values.slug : buildContestSlug(values.title),
+    };
+
     const { data, error } = await db
       .from("contests")
-      .update(update)
+      .update(updatePayload)
       .eq("id", id)
-      .select()
+      .select(CONTEST_SELECT)
       .single();
 
     if (error) throw new Error(`[upsertContest:update] ${error.message}`);
-    return rowToContest(data as ContestRow);
-  } else {
-    const slug = generateSlug(values.title);
-    const { data, error } = await db
-      .from("contests")
-      .insert({ ...values, slug })
-      .select()
-      .single();
-
-    if (error) throw new Error(`[upsertContest:insert] ${error.message}`);
-    return rowToContest(data as ContestRow);
+    return normalizeContestRow(data as ContestRow);
   }
+
+  const insertPayload: ContestInsert = {
+    ...values,
+    slug: values.slug?.trim() ? values.slug : buildContestSlug(values.title),
+  };
+
+  const { data, error } = await db
+    .from("contests")
+    .insert(insertPayload)
+    .select(CONTEST_SELECT)
+    .single();
+
+  if (error) throw new Error(`[upsertContest:insert] ${error.message}`);
+  return normalizeContestRow(data as ContestRow);
 }
 
-/** 공고 삭제 */
 export async function deleteContest(id: string): Promise<void> {
   const supabase = createAdminClient();
   const { error } = await (supabase as any).from("contests").delete().eq("id", id);
   if (error) throw new Error(`[deleteContest] ${error.message}`);
-}
-
-// ----------------------------------------------------------
-// 내부 유틸
-// ----------------------------------------------------------
-
-/** 한국어 제목 → URL-safe slug 변환 */
-function generateSlug(title: string): string {
-  const timestamp = Date.now();
-  const sanitized = title
-    .toLowerCase()
-    .replace(/[^a-z0-9가-힣\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .slice(0, 60);
-  return `${sanitized}-${timestamp}`;
 }

@@ -1,0 +1,180 @@
+{
+  "sql": "SELECT C.cl_srl, C.cl_type, C.cl_cate, C.mb_id, C.cl_name, C.cl_title, C.cl_host, C.cl_start_date, C.cl_end_date, C.cl_target,\n                C.cl_status, C.cl_dday, C.cl_reg_date, A.ad_srl, C.cl_update,\n\t\t\t\t\t\t\t\t(SELECT SUM(cv_visit) FROM a2_contest_visit WHERE cl_srl = C.cl_srl) AS cl_view\n            FROM a2_ad_list A LEFT JOIN a2_contest_list C\n                ON A.cl_srl = C.cl_srl\n            WHERE C.cl_status > 0 AND C.cl_disp = 1 AND C.cl_type IN (2,4) AND C.cl_reserve_date < '2026-03-08 18:52:47' /*AND A.ad_status = 2*/ AND A.ad_code = 'BOT'\n            AND A.ad_st < '2026-03-08 18:52:47' AND A.ad_et > '2026-03-08 18:52:47'  AND (C.cl_target & 399 ) > 0  order by A.ad_order asc, A.ad_et desc",
+  "currentPage": 1,
+  "totalPage": 12,
+  "totalCount": 160,
+  "perPage": 10,
+  "rows": [
+    {
+      "cl_srl": "534482",
+      "cl_cate": "<span class=\"badge cl_cate\">서포터즈·기자단·마케터</span><span class=\"badge cl_cate\">제한없음</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-14",
+      "cl_view": "2461",
+      "cl_title": "<a href='/hit/contest/3842?page=1&sortname=cl_order&sortorder=asc&t=2&ct=&sc=&tg='>알지? 콘텐츠 크리에이터 3기 모집</a>",
+      "cl_date": "26.02.19~26.03.22",
+      "cl_host": "알지?",
+      "cl_is_star": "1"
+    },
+    {
+      "cl_srl": "534904",
+      "cl_type_str": "대외활동",
+      "cl_cate": "<span class=\"badge cl_cate\">서포터즈·기자단·마케터</span><span class=\"badge cl_cate\">대학생</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-8",
+      "cl_view": "325",
+      "cl_title": "<a href='/view/contest/534904?page=1&sortname=cl_order&sortorder=asc&t=2&ct=&sc=&tg='>유진그룹 공식 서포터즈 유지너스 1기 모집</a>",
+      "cl_date": "26.03.04~26.03.16",
+      "cl_host": "유진그룹",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534872",
+      "cl_type_str": "대외활동",
+      "cl_cate": "<span class=\"badge cl_cate\">인턴십·취업</span><span class=\"badge cl_cate\">기타</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-11",
+      "cl_view": "129",
+      "cl_title": "<a href='/view/contest/534872?page=1&sortname=cl_order&sortorder=asc&t=2&ct=&sc=&tg='>2026년 키친인큐베이터 개별·공유주방 23기 모집</a>",
+      "cl_date": "26.03.03~26.03.19",
+      "cl_host": "서울경제진흥원",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534837",
+      "cl_type_str": "대외활동",
+      "cl_cate": "<span class=\"badge cl_cate\">기타(동아리, 캠프, 멘토링 등)</span><span class=\"badge cl_cate\">대학생</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-5",
+      "cl_view": "133",
+      "cl_title": "<a href='/view/contest/534837?page=1&sortname=cl_order&sortorder=asc&t=2&ct=&sc=&tg='>혜인재단 2026 제1기 장학생 모집</a>",
+      "cl_date": "26.02.23~26.03.13",
+      "cl_host": "재단법인 혜안재단",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534835",
+      "cl_type_str": "대외활동",
+      "cl_cate": "<span class=\"badge cl_cate\">서포터즈·기자단·마케터</span><span class=\"badge cl_cate\">일반인</span><span class=\"badge cl_cate\">대학생</span><span class=\"badge cl_cate\">대학원생</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-4",
+      "cl_view": "262",
+      "cl_title": "<a href='/view/contest/534835?page=1&sortname=cl_order&sortorder=asc&t=2&ct=&sc=&tg='>한국학중앙연구원 제9기 K-STORY 기자단 모집</a>",
+      "cl_date": "26.02.27~26.03.12",
+      "cl_host": "한국학중앙연구원",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534814",
+      "cl_type_str": "대외활동",
+      "cl_cate": "<span class=\"badge cl_cate\">서포터즈·기자단·마케터</span><span class=\"badge cl_cate\">기타(동아리, 캠프, 멘토링 등)</span><span class=\"badge cl_cate\">제한없음</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-7",
+      "cl_view": "52",
+      "cl_title": "<a href='/view/contest/534814?page=1&sortname=cl_order&sortorder=asc&t=2&ct=&sc=&tg='>ITQ(엑셀/한글/파워포인트) 온라인스터디 4주 완성반 모집</a>",
+      "cl_date": "26.03.04~26.03.15",
+      "cl_host": "골든래빗",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534810",
+      "cl_type_str": "대외활동",
+      "cl_cate": "<span class=\"badge cl_cate\">봉사활동</span><span class=\"badge cl_cate\">기타(동아리, 캠프, 멘토링 등)</span><span class=\"badge cl_cate\">일반인</span><span class=\"badge cl_cate\">대학생</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-3",
+      "cl_view": "35",
+      "cl_title": "<a href='/view/contest/534810?page=1&sortname=cl_order&sortorder=asc&t=2&ct=&sc=&tg='>굿네이버스 경북사업본부 대학생자원봉사동아리 아이나래 17기 모집</a>",
+      "cl_date": "26.03.04~26.03.11",
+      "cl_host": "굿네이버스 경북사업본부",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534804",
+      "cl_type_str": "대외활동",
+      "cl_cate": "<span class=\"badge cl_cate\">봉사활동</span><span class=\"badge cl_cate\">기타(동아리, 캠프, 멘토링 등)</span><span class=\"badge cl_cate\">대학생</span><span class=\"badge cl_cate\">초등학생</span><span class=\"badge cl_cate\">중학생</span><span class=\"badge cl_cate\">고등학생</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-12",
+      "cl_view": "44",
+      "cl_title": "<a href='/view/contest/534804?page=1&sortname=cl_order&sortorder=asc&t=2&ct=&sc=&tg='>제18기 성북구 아동 청소년 참여위원회 모집</a>",
+      "cl_date": "26.03.04~26.03.20",
+      "cl_host": "성북구",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534650",
+      "cl_type_str": "대외활동",
+      "cl_cate": "<span class=\"badge cl_cate\">체험단·모니터링</span><span class=\"badge cl_cate\">대학생</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-2",
+      "cl_view": "160",
+      "cl_title": "<a href='/view/contest/534650?page=1&sortname=cl_order&sortorder=asc&t=2&ct=&sc=&tg='>2026 YBM 토익인강 대학생 체험단 와베머 9기 모집</a>",
+      "cl_date": "26.02.26~26.03.10",
+      "cl_host": "(주)와이비엠넷",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534802",
+      "cl_type_str": "대외활동",
+      "cl_cate": "<span class=\"badge cl_cate\">인턴십·취업</span><span class=\"badge cl_cate\">대학생</span><span class=\"badge cl_cate\">대학원생</span><span class=\"badge cl_cate\">기타</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-9",
+      "cl_view": "56",
+      "cl_title": "<a href='/view/contest/534802?page=1&sortname=cl_order&sortorder=asc&t=2&ct=&sc=&tg='>2026년 포용성장 전문연구인력양성사업 공공연구기관 현장 실습 연구 참여자 모집</a>",
+      "cl_date": "26.03.04~26.03.17",
+      "cl_host": "과학기술정보통신부",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534799",
+      "cl_type_str": "대외활동",
+      "cl_cate": "<span class=\"badge cl_cate\">서포터즈·기자단·마케터</span><span class=\"badge cl_cate\">대학생</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-9",
+      "cl_view": "62",
+      "cl_title": "<a href='/view/contest/534799?page=1&sortname=cl_order&sortorder=asc&t=2&ct=&sc=&tg='>시립광진청소년센터 대학생서포터즈 '잇다' 단원 추가모집</a>",
+      "cl_date": "26.03.03~26.03.17",
+      "cl_host": "시립광진청소년센터",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534795",
+      "cl_type_str": "대외활동",
+      "cl_cate": "<span class=\"badge cl_cate\">서포터즈·기자단·마케터</span><span class=\"badge cl_cate\">봉사활동</span><span class=\"badge cl_cate\">대학생</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-5",
+      "cl_view": "62",
+      "cl_title": "<a href='/view/contest/534795?page=1&sortname=cl_order&sortorder=asc&t=2&ct=&sc=&tg='>중앙노인보호전문기관 대학생 서포터즈 '새김지기단 7기' 모집</a>",
+      "cl_date": "26.03.03~26.03.13",
+      "cl_host": "중앙노인보호전문기관",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534793",
+      "cl_type_str": "대외활동",
+      "cl_cate": "<span class=\"badge cl_cate\">기타(동아리, 캠프, 멘토링 등)</span><span class=\"badge cl_cate\">대학생</span><span class=\"badge cl_cate\">대학원생</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-28",
+      "cl_view": "101",
+      "cl_title": "<a href='/view/contest/534793?page=1&sortname=cl_order&sortorder=asc&t=2&ct=&sc=&tg='>아시아교류협회 2026년 K-water 장학회 청년 멘토 모집</a>",
+      "cl_date": "26.03.04~26.04.05",
+      "cl_host": "한국수자원공사",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534787",
+      "cl_type_str": "대외활동",
+      "cl_cate": "<span class=\"badge cl_cate\">봉사활동</span><span class=\"badge cl_cate\">기타(동아리, 캠프, 멘토링 등)</span><span class=\"badge cl_cate\">일반인</span><span class=\"badge cl_cate\">대학생</span><span class=\"badge cl_cate\">대학원생</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-16",
+      "cl_view": "45",
+      "cl_title": "<a href='/view/contest/534787?page=1&sortname=cl_order&sortorder=asc&t=2&ct=&sc=&tg='>포항시북부장애인종합복지관 2026 장애가정아동 성장멘토링 멘토 모집</a>",
+      "cl_date": "26.03.03~26.03.24",
+      "cl_host": "포항시북부장애인종합복지…",
+      "cl_is_star": "0"
+    },
+    {
+      "cl_srl": "534786",
+      "cl_type_str": "대외활동",
+      "cl_cate": "<span class=\"badge cl_cate\">인턴십·취업</span><span class=\"badge cl_cate\">일반인</span><span class=\"badge cl_cate\">대학생</span><span class=\"badge cl_cate\">고등학생</span>",
+      "cl_status": "<span class='badge cl_status2'>접수중</span><br>D-5",
+      "cl_view": "71",
+      "cl_title": "<a href='/view/contest/534786?page=1&sortname=cl_order&sortorder=asc&t=2&ct=&sc=&tg='>2026 프로젝트형 일경험 프로그램 광주관광공사 참여자 모집</a>",
+      "cl_date": "26.03.03~26.03.13",
+      "cl_host": "(사)인재육성아카데미",
+      "cl_is_star": "0"
+    }
+  ],
+  "para": {
+    "t": "2",
+    "page": "1",
+    "sortname": "cl_order",
+    "sortorder": "asc",
+    "dataRows": "15"
+  }
+}

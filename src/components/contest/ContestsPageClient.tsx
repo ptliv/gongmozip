@@ -17,6 +17,8 @@ interface Props {
   initialContests: Contest[];
 }
 
+const PAGE_SIZE = 18;
+
 export function ContestsPageClient({ initialContests }: Props) {
   const router = useRouter();
   const pathname = usePathname();
@@ -26,6 +28,7 @@ export function ContestsPageClient({ initialContests }: Props) {
   const [filter, setFilter] = useState<ContestFilter>(() =>
     filterFromSearchParams(searchParams)
   );
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
 
   // 검색어 디바운스 타이머
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout>>();
@@ -43,6 +46,7 @@ export function ContestsPageClient({ initialContests }: Props) {
     (partial: Partial<ContestFilter>) => {
       setFilter((prev) => {
         const next = { ...prev, ...partial };
+        setVisibleCount(PAGE_SIZE);
 
         if ("search" in partial) {
           clearTimeout(searchDebounceRef.current);
@@ -60,6 +64,7 @@ export function ContestsPageClient({ initialContests }: Props) {
   // 전체 초기화
   const resetFilter = useCallback(() => {
     setFilter(DEFAULT_FILTER);
+    setVisibleCount(PAGE_SIZE);
     router.replace(pathname, { scroll: false });
   }, [router, pathname]);
 
@@ -68,6 +73,11 @@ export function ContestsPageClient({ initialContests }: Props) {
     () => applyFilters(initialContests, filter),
     [initialContests, filter]
   );
+  const visible = useMemo(
+    () => filtered.slice(0, visibleCount),
+    [filtered, visibleCount]
+  );
+  const hasMore = visibleCount < filtered.length;
 
   return (
     <div className="space-y-5">
@@ -88,7 +98,19 @@ export function ContestsPageClient({ initialContests }: Props) {
       />
 
       {/* 공고 목록 */}
-      <ContestList contests={filtered} onReset={resetFilter} />
+      <ContestList contests={visible} onReset={resetFilter} />
+
+      {hasMore && (
+        <div className="flex justify-center pt-1">
+          <button
+            type="button"
+            onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
+            className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+          >
+            더 보기 ({filtered.length - visible.length}개 남음)
+          </button>
+        </div>
+      )}
     </div>
   );
 }

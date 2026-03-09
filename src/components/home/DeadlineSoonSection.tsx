@@ -23,7 +23,7 @@ export function DeadlineSoonSection({ contests }: DeadlineSoonSectionProps) {
           </div>
         </div>
         <Link
-          href="/contests?sort=deadline"
+          href="/deadline"
           className="inline-flex items-center gap-1 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors group"
         >
           전체보기

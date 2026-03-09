@@ -2,10 +2,14 @@ import { Metadata } from "next";
 import { Suspense } from "react";
 import { fetchContests } from "@/lib/supabase/contests";
 import { ContestsPageClient } from "@/components/contest/ContestsPageClient";
+import { canonicalUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "공고 목록",
   description: "공모전, 대외활동, 인턴십 등 다양한 청년 활동 공고를 검색하세요.",
+  alternates: {
+    canonical: canonicalUrl("/contests"),
+  },
 };
 
 export default async function ContestsPage() {

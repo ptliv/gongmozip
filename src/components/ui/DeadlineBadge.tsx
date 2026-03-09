@@ -2,7 +2,7 @@ import { cn } from "@/lib/utils";
 import { getDaysUntilDeadline, getDeadlineStatus, getDDayLabel } from "@/lib/date";
 
 interface DeadlineBadgeProps {
-  applyEndAt: string; // YYYY-MM-DD
+  applyEndAt?: string | null; // YYYY-MM-DD
   className?: string;
 }
 
@@ -14,8 +14,24 @@ const styles = {
 };
 
 export function DeadlineBadge({ applyEndAt, className }: DeadlineBadgeProps) {
+  if (!applyEndAt) {
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold tabular-nums tracking-tight whitespace-nowrap",
+          styles.closed,
+          className
+        )}
+      >
+        마감일 미정
+      </span>
+    );
+  }
+
   const status = getDeadlineStatus(applyEndAt);
   const label = getDDayLabel(applyEndAt);
+  const days = getDaysUntilDeadline(applyEndAt);
+  const safeLabel = Number.isFinite(days) ? label : "마감일 미정";
 
   return (
     <span
@@ -28,7 +44,7 @@ export function DeadlineBadge({ applyEndAt, className }: DeadlineBadgeProps) {
       {status === "urgent" && (
         <span className="mr-1 w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse inline-block" />
       )}
-      {label}
+      {safeLabel}
     </span>
   );
 }
