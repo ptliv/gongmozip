@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ExternalLink, Calendar, Building2, Globe, Database } from "lucide-react";
+import { ExternalLink, Calendar, Building2, Globe, Database, MapPin, Users, Trophy } from "lucide-react";
 import {
   getContestDetailPayload,
   getRelatedContestsPayload,
@@ -224,6 +224,14 @@ export default async function ContestDetailPage({ params }: Props) {
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
             {dDayLabel(contest.apply_end_at)}
           </span>
+          {contest.normalized_targets.map((t) => (
+            <span
+              key={t}
+              className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-100"
+            >
+              {t}
+            </span>
+          ))}
         </div>
 
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-snug">{contest.title}</h1>
@@ -250,6 +258,25 @@ export default async function ContestDetailPage({ params }: Props) {
             <Database className="w-4 h-4 text-gray-400" />
             <span className="font-semibold">출처</span>
             <span>{contest.source_site || "미정"}</span>
+          </div>
+          {contest.region && contest.region !== "무관" && (
+            <div className="flex items-center gap-2 text-gray-700">
+              <MapPin className="w-4 h-4 text-gray-400" />
+              <span className="font-semibold">지역</span>
+              <span>{contest.region}</span>
+            </div>
+          )}
+          {contest.online_offline && (
+            <div className="flex items-center gap-2 text-gray-700">
+              <Globe className="w-4 h-4 text-gray-400" />
+              <span className="font-semibold">진행 방식</span>
+              <span>{contest.online_offline}</span>
+            </div>
+          )}
+          <div className="flex items-center gap-2 text-gray-700">
+            <Users className="w-4 h-4 text-gray-400" />
+            <span className="font-semibold">팀 참가</span>
+            <span>{contest.team_allowed ? "가능" : "개인 참가"}</span>
           </div>
         </div>
 
@@ -282,11 +309,74 @@ export default async function ContestDetailPage({ params }: Props) {
         </div>
       </section>
 
+      {(contest.benefit?.prize || (contest.benefit?.types?.length ?? 0) > 0) && (
+        <section className="rounded-2xl border border-amber-100 bg-amber-50/40 p-6 space-y-3 shadow-card">
+          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-amber-500" />
+            혜택 / 시상
+          </h2>
+          {contest.benefit.prize && (
+            <p className="text-base font-semibold text-gray-800">{contest.benefit.prize}</p>
+          )}
+          {(contest.benefit.types?.length ?? 0) > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {contest.benefit.types.map((type) => (
+                <span
+                  key={type}
+                  className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800 border border-amber-200"
+                >
+                  {type}
+                </span>
+              ))}
+            </div>
+          )}
+        </section>
+      )}
+
       <section className="rounded-2xl border border-gray-100 bg-white p-6 space-y-3 shadow-card">
         <h2 className="text-lg font-bold text-gray-900">지원 자격 / 안내</h2>
-        <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-          {contest.eligibility_text || "상세 자격 정보가 등록되지 않았습니다."}
-        </p>
+        {contest.eligibility_text ? (
+          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
+            {contest.eligibility_text}
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {contest.normalized_targets.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">참가 대상</p>
+                <div className="flex flex-wrap gap-2">
+                  {contest.normalized_targets.map((t) => (
+                    <span
+                      key={t}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-100"
+                    >
+                      <Users className="w-3 h-3" />
+                      {t}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            <p className="text-sm text-gray-600 leading-relaxed">
+              지원 자격 및 참가 방법에 대한 상세 내용은 공식 사이트에서 확인하세요.
+              {contest.online_offline ? ` 본 공고는 ${contest.online_offline} 방식으로 진행됩니다.` : ""}
+              {contest.region && contest.region !== "무관" ? ` 참가 지역: ${contest.region}.` : ""}
+              {contest.team_allowed ? " 팀 참가가 가능합니다." : ""}
+            </p>
+            {showOfficialButton && (
+              <a
+                href={contest.official_source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
+              >
+                <Globe className="w-4 h-4" />
+                공식 사이트에서 확인하기
+                <ExternalLink className="w-3.5 h-3.5" />
+              </a>
+            )}
+          </div>
+        )}
       </section>
 
       {metadataPairs.length > 0 && (
