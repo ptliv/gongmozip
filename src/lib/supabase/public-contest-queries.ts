@@ -10,7 +10,7 @@ const BASE_SELECT = `
   apply_start_at, apply_end_at, status, benefit,
   official_source_url, aggregator_source_url,
   source_site, source_url, official_url, external_id, raw_payload, crawled_at, is_verified,
-  verified_level, view_count, created_at, updated_at
+  verified_level, review_score, view_count, created_at, updated_at
 `;
 
 const OPEN_STATUSES = ["ongoing", "upcoming"] as const;
@@ -212,6 +212,7 @@ async function fetchOpenContests(limit = 2000): Promise<ContestDetailPayload[]> 
     .from("contests")
     .select(BASE_SELECT)
     .in("status", OPEN_STATUSES)
+    .gte("verified_level", 1)   // 자동공개(1) 또는 관리자 검수 완료(2,3)만 공개
     .order("created_at", { ascending: false })
     .limit(safeLimit);
 
@@ -226,7 +227,7 @@ export async function getContestDetailPayload(slug: string): Promise<{
   ok: boolean;
   contest: ContestDetailPayload | null;
 }> {
-  const contest = await fetchContestBySlug(slug);
+  const contest = await fetchContestBySlug(slug, { verified_only: true });
   if (!contest) {
     return { ok: false, contest: null };
   }

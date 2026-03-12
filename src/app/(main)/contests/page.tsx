@@ -13,7 +13,7 @@ export const metadata: Metadata = {
 };
 
 export default async function ContestsPage() {
-  const contests = await fetchContests().catch((e: unknown) => {
+  const contests = await fetchContests({ verified_only: true }).catch((e: unknown) => {
     console.error("[ContestsPage] fetchContests 실패:", e);
     return [];
   });

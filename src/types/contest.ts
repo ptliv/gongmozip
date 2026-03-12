@@ -173,6 +173,7 @@ export interface Contest {
 
   // 메타
   verified_level: VerifiedLevel;
+  review_score?: number | null;  // 자동 품질 점수 0~100, 수동 등록은 null
   view_count: number;
   created_at: string; // ISO datetime
   updated_at: string; // ISO datetime

@@ -14,7 +14,12 @@
       "Bash(wait:*)",
       "Bash(curl:*)",
       "Bash(pkill:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git -C \"/mnt/c/madeinmine/contest with web\" log --oneline --all | head -30)",
+      "Bash(grep -r \"crawl_all\\\\|python.*crawl\\\\|cron\\\\|schedule\" \"/mnt/c/madeinmine/contest with web\" --include=\"*.py\" --include=\"*.ts\" --include=\"*.tsx\" --include=\"*.js\" --include=\"*.json\" --include=\"*.yml\" --include=\"*.yaml\" 2>/dev/null | grep -v node_modules | head -30)",
+      "Bash(git -C \"/mnt/c/madeinmine/contest with web\" log --all --oneline --grep=\"crawl\\\\|cron\\\\|schedule\\\\|automat\" | head -20)",
+      "Bash(git -C \"/mnt/c/madeinmine/contest with web\" log --all --oneline | head -40)",
+      "Bash(wc -l \"/mnt/c/madeinmine/contest with web/scripts\"/*.py \"/mnt/c/madeinmine/contest with web/scripts/sources\"/*.py \"/mnt/c/madeinmine/contest with web/scripts/utils\"/*.py)"
     ]
   }
 }

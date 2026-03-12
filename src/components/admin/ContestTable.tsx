@@ -49,6 +49,18 @@ function VerifiedBadge({ level }: { level: VerifiedLevel }) {
   );
 }
 
+function ScoreBadge({ score }: { score: number }) {
+  const cls =
+    score >= 80 ? "text-emerald-600" :
+    score >= 50 ? "text-amber-600" :
+    "text-red-500";
+  return (
+    <span className={cn("text-[10px] font-medium tabular-nums", cls)}>
+      {score}점
+    </span>
+  );
+}
+
 // ----------------------------------------------------------
 // 메인 컴포넌트
 // ----------------------------------------------------------
@@ -216,9 +228,12 @@ function TableRow({ contest }: { contest: Contest }) {
         <StatusBadge status={contest.status} />
       </div>
 
-      {/* 검수 */}
-      <div className="hidden sm:block">
+      {/* 검수 + 점수 */}
+      <div className="hidden sm:block space-y-1">
         <VerifiedBadge level={contest.verified_level} />
+        {contest.review_score != null && (
+          <ScoreBadge score={contest.review_score} />
+        )}
       </div>
 
       {/* 수정 버튼 */}

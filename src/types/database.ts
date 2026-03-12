@@ -53,6 +53,7 @@ export interface ContestRow {
   crawled_at?: string | null;
   is_verified?: boolean;
   verified_level: VerifiedLevel;     // smallint 0-3
+  review_score?: number | null;      // smallint 0-100, 크롤러 자동 산출 (수동 등록 공고는 null)
   view_count: number;                // integer
   created_at: string;                // timestamptz → ISO string
   updated_at: string;

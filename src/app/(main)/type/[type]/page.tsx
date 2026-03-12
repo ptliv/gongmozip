@@ -36,7 +36,7 @@ export default async function TypePage({ params }: Props) {
   const type = getType(params.type);
   if (!type) notFound();
 
-  const contests = await fetchContests({ type }).catch((e: unknown) => {
+  const contests = await fetchContests({ type, verified_only: true }).catch((e: unknown) => {
     console.error("[TypePage] fetchContests 실패:", e);
     return [];
   });

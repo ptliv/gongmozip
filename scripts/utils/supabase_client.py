@@ -17,6 +17,7 @@ from dotenv import load_dotenv
 from supabase import create_client, Client
 
 from utils import logger
+from utils.auto_score import score_contest, decide_verified_level, get_score_label
 
 # .env.local 또는 .env 파일에서 환경변수 로드
 # GitHub Actions에서는 secrets로 주입되므로 load_dotenv는 무시됩니다.
@@ -95,11 +96,21 @@ def upsert_contest(client: Client, contest: dict) -> dict:
     contest["is_verified"] = False
     contest["crawled_at"] = datetime.now(timezone.utc).isoformat()
 
+    # ── 자동 품질 점수화 ──────────────────────────────────────────────
+    review_score = score_contest(contest)
+    auto_level   = decide_verified_level(review_score)
+    contest["review_score"]  = review_score
+    contest["verified_level"] = auto_level
+    logger.info(
+        f"  [auto_score] {get_score_label(review_score)} "
+        f"→ verified_level={auto_level} | {contest.get('title','')[:40]}"
+    )
+
     try:
         # ── 1. 기존 데이터 조회 ────────────────────────────────────────
         response = (
             client.table("contests")
-            .select("id")
+            .select("id, verified_level")
             .eq("source_site", source_site)
             .eq("external_id", external_id)
             .execute()
@@ -110,8 +121,19 @@ def upsert_contest(client: Client, contest: dict) -> dict:
         # ── 2. UPDATE ──────────────────────────────────────────────────
         if existing:
             record_id = existing[0]["id"]
+            existing_level = existing[0].get("verified_level", 0)
+
             # slug는 기존 것을 유지 (UPDATE 시 덮어쓰지 않음)
             update_data = {k: v for k, v in contest.items() if k != "slug"}
+
+            # 관리자가 직접 검수한 경우(verified_level >= 2) 자동 판정으로 덮어쓰지 않음
+            if existing_level >= 2:
+                update_data.pop("verified_level", None)
+                logger.info(
+                    f"  [auto_score] 관리자 검수 유지 (existing level={existing_level}) "
+                    f"← id={record_id[:8]}"
+                )
+
             client.table("contests").update(update_data).eq("id", record_id).execute()
             return {"action": "update", "id": record_id}
 

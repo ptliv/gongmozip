@@ -144,8 +144,12 @@ export default async function AdminDashboard() {
                       {c.organizer} · ~{formatDate(c.apply_end_at)}
                     </div>
                   </div>
-                  <span className="text-xs text-amber-600 font-semibold flex-shrink-0">
-                    검수 필요
+                  <span className={`text-xs font-semibold flex-shrink-0 ${
+                    c.review_score != null && c.review_score >= 50
+                      ? "text-amber-600"
+                      : "text-red-500"
+                  }`}>
+                    {c.review_score != null ? `${c.review_score}점` : "검수 필요"}
                   </span>
                 </Link>
               ))}

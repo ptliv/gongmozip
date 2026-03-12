@@ -15,7 +15,7 @@ const CONTEST_SELECT = `
   apply_start_at, apply_end_at, status, benefit,
   official_source_url, aggregator_source_url,
   source_site, source_url, official_url, external_id, raw_payload, crawled_at, is_verified,
-  verified_level, view_count, created_at, updated_at
+  verified_level, review_score, view_count, created_at, updated_at
 `;
 
 export function normalizeContestRow(row: Partial<ContestRow>): Contest {
@@ -53,16 +53,25 @@ export function normalizeContestRow(row: Partial<ContestRow>): Contest {
     crawled_at: (row.crawled_at as string | null) ?? null,
     is_verified: Boolean(row.is_verified),
     verified_level: Number(row.verified_level ?? 0) as Contest["verified_level"],
+    review_score: row.review_score != null ? Number(row.review_score) : null,
     view_count: Number(row.view_count ?? 0),
     created_at: String(row.created_at ?? ""),
     updated_at: String(row.updated_at ?? ""),
   };
 }
 
-export async function fetchContests(filter?: Partial<ContestFilter>): Promise<Contest[]> {
+export async function fetchContests(
+  filter?: Partial<ContestFilter> & { verified_only?: boolean }
+): Promise<Contest[]> {
   const supabase = createServerClient();
 
   let query = (supabase as any).from("contests").select(CONTEST_SELECT);
+
+  // 공개 페이지용: verified_level >= 1 (자동공개 또는 관리자 검수 완료)
+  // 관리자 페이지는 verified_only: false 를 명시적으로 전달해 전체 조회
+  if (filter?.verified_only === true) {
+    query = query.gte("verified_level", 1);
+  }
 
   if (filter?.status && filter.status !== "전체") {
     query = query.eq("status", filter.status);
@@ -99,17 +108,22 @@ export async function fetchContests(filter?: Partial<ContestFilter>): Promise<Co
   return ((data ?? []) as ContestRow[]).map((row) => normalizeContestRow(row));
 }
 
-export async function fetchContestBySlug(slug: string): Promise<Contest | null> {
+export async function fetchContestBySlug(
+  slug: string,
+  opts?: { verified_only?: boolean }
+): Promise<Contest | null> {
   const supabase = createServerClient();
   const slugCandidates = getSlugCandidates(slug);
+  const verifiedOnly = opts?.verified_only ?? false;
 
   // Step 1: DB slug 컬럼 직접 매칭 (normalized/encoded 후보 포함)
   for (const candidate of slugCandidates) {
-    const direct = await (supabase as any)
+    let q = (supabase as any)
       .from("contests")
       .select(CONTEST_SELECT)
-      .eq("slug", candidate)
-      .maybeSingle();
+      .eq("slug", candidate);
+    if (verifiedOnly) q = q.gte("verified_level", 1);
+    const direct = await q.maybeSingle();
 
     if (direct.error && direct.error.code !== "PGRST116") {
       throw new Error(`[fetchContestBySlug] ${direct.error.message}`);
