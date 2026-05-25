@@ -21,7 +21,6 @@ export function ContestCard({ contest, variant = "default" }: ContestCardProps) 
     title: contest.title,
     organizer: contest.organizer,
     apply_end_at: contest.apply_end_at,
-    source_site: contest.source_site ?? "",
   };
   const deadlineText = (() => {
     if (!contest.apply_end_at) return "마감일 미정";
@@ -89,11 +88,6 @@ export function ContestCard({ contest, variant = "default" }: ContestCardProps) 
           <div className="flex items-start justify-between gap-2 mb-3 pr-10">
             <div className="flex items-center gap-1.5">
               <CategoryChip label={contest.type} variant="type" />
-              {contest.source_site && (
-                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">
-                  {contest.source_site}
-                </span>
-              )}
             </div>
             <DeadlineBadge applyEndAt={contest.apply_end_at} />
           </div>

@@ -89,9 +89,8 @@ export function BookmarksPageClient() {
                 <span className="text-gray-400">{safeDate(item.apply_end_at)}</span>
                 <DeadlineBadge applyEndAt={item.apply_end_at} />
               </div>
-              <div className="mt-2 flex items-center justify-between text-[11px] text-gray-400">
-                <span>{item.source_site || "source 미정"}</span>
-                <span>저장 {safeDate(item.saved_at.slice(0, 10))}</span>
+              <div className="mt-2 text-right text-[11px] text-gray-400">
+                저장 {safeDate(item.saved_at.slice(0, 10))}
               </div>
             </Link>
           </div>

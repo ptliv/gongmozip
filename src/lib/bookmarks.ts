@@ -18,7 +18,6 @@ function normalizeItem(source: BookmarkSource): BookmarkItem | null {
     title: source.title?.trim() || "제목 없음",
     organizer: source.organizer?.trim() || "주최 미정",
     apply_end_at: source.apply_end_at?.trim() || "",
-    source_site: source.source_site?.trim() || "",
     saved_at: new Date().toISOString(),
   };
 }
@@ -58,7 +57,6 @@ export function readBookmarks(storage?: StorageLike | null): BookmarkItem[] {
           title: item?.title,
           organizer: item?.organizer,
           apply_end_at: item?.apply_end_at,
-          source_site: item?.source_site,
         })
       )
       .filter((item): item is BookmarkItem => Boolean(item))

@@ -1,13 +1,12 @@
 import type { Metadata } from "next";
+import type { ReactNode } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import {
-  ExternalLink,
   Calendar,
   Building2,
   Globe,
-  Database,
   MapPin,
   Users,
   Trophy,
@@ -74,7 +73,6 @@ const METADATA_KEY_WHITELIST = [
   "응모자격",
   "시상내역",
   "문의처",
-  "홈페이지",
   "주제",
   "참가비",
   "유의사항",
@@ -84,10 +82,88 @@ const METADATA_KEY_WHITELIST = [
   "qualification",
   "prize",
   "contact",
-  "homepage",
-  "url",
   "fee",
 ] as const;
+
+const EMPHASIS_TERMS = [
+  "마감일",
+  "마감",
+  "접수",
+  "신청",
+  "지원",
+  "제출",
+  "확인",
+  "체크",
+  "참가 대상",
+  "대상",
+  "자격",
+  "시상",
+  "상금",
+  "혜택",
+  "결과 발표",
+  "일정",
+  "팀",
+  "포트폴리오",
+  "저작권",
+  "초상권",
+  "양식",
+  "서류",
+] as const;
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+const EMPHASIS_RE = new RegExp(
+  `(${[...EMPHASIS_TERMS].sort((a, b) => b.length - a.length).map(escapeRegExp).join("|")})`,
+  "gi"
+);
+
+function sanitizePublicText(text: string): string {
+  return text
+    .replace(/공식\/원문 안내/g, "상세 안내")
+    .replace(/공식\s*사이트/g, "최신 모집 요강")
+    .replace(/공식\s*공고/g, "최신 모집 요강")
+    .replace(/공식\s*안내문/g, "상세 안내문")
+    .replace(/공식\s*안내/g, "상세 안내")
+    .replace(/원본\s*공고/g, "최신 모집 요강")
+    .replace(/원문/g, "상세 안내")
+    .replace(/출처/g, "자료");
+}
+
+function highlightInline(text: string): ReactNode[] {
+  return sanitizePublicText(text).split(EMPHASIS_RE).map((part, index) => {
+    if (!part) return null;
+    if (!EMPHASIS_TERMS.some((term) => term.toLowerCase() === part.toLowerCase())) {
+      return part;
+    }
+    return (
+      <mark
+        key={`${part}-${index}`}
+        className="rounded bg-yellow-100 px-0.5 font-bold text-gray-950 underline decoration-yellow-400 decoration-2 underline-offset-2"
+      >
+        {part}
+      </mark>
+    );
+  });
+}
+
+function renderHighlightedParagraphs(text: string): ReactNode[] {
+  return text
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+    .map((paragraph, index) => (
+      <p key={`${paragraph.slice(0, 24)}-${index}`} className="mb-3 last:mb-0">
+        {paragraph.split(/\n/).map((line, lineIndex) => (
+          <span key={`${line.slice(0, 24)}-${lineIndex}`}>
+            {lineIndex > 0 && <br />}
+            {highlightInline(line)}
+          </span>
+        ))}
+      </p>
+    ));
+}
 
 function isAllowedMetadataKey(key: string): boolean {
   const normalized = key
@@ -124,13 +200,13 @@ function toMetadataPairs(metadata: Record<string, unknown>): Array<{ key: string
 function benefitLabel(contest: ContestDetailPayload): string {
   if (contest.benefit?.prize) return contest.benefit.prize;
   if ((contest.benefit?.types?.length ?? 0) > 0) return contest.benefit.types.join(", ");
-  return "공식 안내 기준";
+  return "모집 요강 기준";
 }
 
 function targetLabel(contest: ContestDetailPayload): string {
   if (contest.normalized_targets.length > 0) return contest.normalized_targets.join(", ");
   if (contest.target_tags.length > 0) return contest.target_tags.join(", ");
-  return "공식 안내 기준";
+  return "모집 요강 기준";
 }
 
 function getOfficialEnrichment(contest: ContestDetailPayload): {
@@ -173,7 +249,7 @@ function buildPreparationTips(contest: ContestDetailPayload): string[] {
   } else if (/(서포터즈|기자단|대외활동|봉사)/.test(haystack)) {
     tips.push("필수 참석 일정, 콘텐츠 제출 횟수, 수료 기준, 활동비 지급 조건을 확인하세요.");
   } else {
-    tips.push("모집 요강, 제출 방식, 문의처를 공식 사이트 기준으로 다시 확인한 뒤 지원하세요.");
+    tips.push("모집 요강, 제출 방식, 문의처를 최신 안내 기준으로 다시 확인한 뒤 지원하세요.");
   }
 
   return tips;
@@ -183,7 +259,7 @@ function buildChecklist(contest: ContestDetailPayload): string[] {
   const checks = [
     `마감일 ${safeDateLabel(contest.apply_end_at)} 전까지 접수 완료 기준을 확인`,
     "제출 양식, 파일명, 분량, 개인정보 동의서 등 필수 서류 확인",
-    "공식 사이트의 최신 공지와 공모전집 요약이 다른 경우 공식 안내 우선 적용",
+    "최신 모집 요강과 공모전집 요약이 다른 경우 최신 모집 요강 우선 적용",
   ];
   if (contest.team_allowed) {
     checks.push("팀 지원 시 대표자 정보, 팀원 동의, 역할 분담표 준비");
@@ -292,12 +368,7 @@ export default async function ContestDetailPage({ params }: Props) {
     title: contest.title,
     organizer: contest.organizer,
     apply_end_at: contest.apply_end_at,
-    source_site: contest.source_site ?? "",
   };
-  const showSourceButton = Boolean(
-    contest.source_url && contest.source_url !== contest.official_source_url
-  );
-  const showOfficialButton = Boolean(contest.official_source_url);
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10 space-y-8">
@@ -321,11 +392,6 @@ export default async function ContestDetailPage({ params }: Props) {
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-violet-50 text-violet-700 border border-violet-100">
             {contest.field}
           </span>
-          {contest.source_site && (
-            <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 border border-gray-200">
-              {contest.source_site}
-            </span>
-          )}
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
             {statusLabel(contest.status)}
           </span>
@@ -375,11 +441,6 @@ export default async function ContestDetailPage({ params }: Props) {
               {safeDateLabel(contest.apply_start_at)} - {safeDateLabel(contest.apply_end_at)}
             </span>
           </div>
-          <div className="flex items-center gap-2 text-gray-700">
-            <Database className="w-4 h-4 text-gray-400" />
-            <span className="font-semibold">출처</span>
-            <span>{contest.source_site || "미정"}</span>
-          </div>
           {contest.region && contest.region !== "무관" && (
             <div className="flex items-center gap-2 text-gray-700">
               <MapPin className="w-4 h-4 text-gray-400" />
@@ -403,30 +464,6 @@ export default async function ContestDetailPage({ params }: Props) {
 
         <div className="flex flex-wrap gap-2 pt-1">
           <BookmarkToggleButton item={bookmarkItem} showLabel size="md" />
-
-          {showOfficialButton && (
-            <a
-              href={contest.official_source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
-            >
-              <Globe className="w-4 h-4" />
-              공식 사이트
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          )}
-          {showSourceButton && (
-            <a
-              href={contest.source_url || "#"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              원문 보기
-              <ExternalLink className="w-3.5 h-3.5" />
-            </a>
-          )}
         </div>
       </section>
 
@@ -457,9 +494,9 @@ export default async function ContestDetailPage({ params }: Props) {
       <section className="rounded-2xl border border-gray-100 bg-white p-6 space-y-3 shadow-card">
         <h2 className="text-lg font-bold text-gray-900">지원 자격 / 안내</h2>
         {contest.eligibility_text ? (
-          <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-line">
-            {contest.eligibility_text}
-          </p>
+          <div className="text-sm text-gray-700 leading-relaxed">
+            {renderHighlightedParagraphs(contest.eligibility_text)}
+          </div>
         ) : (
           <div className="space-y-3">
             {contest.normalized_targets.length > 0 && (
@@ -479,23 +516,11 @@ export default async function ContestDetailPage({ params }: Props) {
               </div>
             )}
             <p className="text-sm text-gray-600 leading-relaxed">
-              지원 자격 및 참가 방법에 대한 상세 내용은 공식 사이트에서 확인하세요.
+              지원 자격 및 참가 방법은 최신 모집 요강 기준으로 확인하세요.
               {contest.online_offline ? ` 본 공고는 ${contest.online_offline} 방식으로 진행됩니다.` : ""}
               {contest.region && contest.region !== "무관" ? ` 참가 지역: ${contest.region}.` : ""}
               {contest.team_allowed ? " 팀 참가가 가능합니다." : ""}
             </p>
-            {showOfficialButton && (
-              <a
-                href={contest.official_source_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
-              >
-                <Globe className="w-4 h-4" />
-                공식 사이트에서 확인하기
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            )}
           </div>
         )}
       </section>
@@ -508,13 +533,13 @@ export default async function ContestDetailPage({ params }: Props) {
               지원 준비 가이드
             </h2>
             <p className="text-sm text-gray-500 mt-1">
-              공고 정보와 공식 안내를 바탕으로 지원 전에 확인할 내용을 정리했습니다.
+              공고 정보와 상세 안내를 바탕으로 지원 전에 확인할 내용을 정리했습니다.
             </p>
           </div>
           {officialEnrichment.chars ? (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 text-xs font-semibold">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              공식 본문 확인됨
+              상세 본문 보강됨
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-50 text-gray-600 border border-gray-100 text-xs font-semibold">
@@ -533,7 +558,7 @@ export default async function ContestDetailPage({ params }: Props) {
               {preparationTips.map((tip) => (
                 <li key={tip} className="flex gap-2">
                   <span className="mt-2 h-1.5 w-1.5 rounded-full bg-blue-400 flex-shrink-0" />
-                  <span>{tip}</span>
+                  <span>{highlightInline(tip)}</span>
                 </li>
               ))}
             </ul>
@@ -548,9 +573,9 @@ export default async function ContestDetailPage({ params }: Props) {
               {scheduleGuide.map((step) => (
                 <div key={step.label} className="flex gap-3">
                   <div className="w-16 flex-shrink-0 text-xs font-bold text-gray-500">
-                    {step.label}
+                    {highlightInline(step.label)}
                   </div>
-                  <p className="text-sm text-gray-700 leading-relaxed">{step.text}</p>
+                  <p className="text-sm text-gray-700 leading-relaxed">{highlightInline(step.text)}</p>
                 </div>
               ))}
             </div>
@@ -565,7 +590,7 @@ export default async function ContestDetailPage({ params }: Props) {
               {checklist.map((item) => (
                 <li key={item} className="flex gap-2">
                   <CheckCircle2 className="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" />
-                  <span>{item}</span>
+                  <span>{highlightInline(item)}</span>
                 </li>
               ))}
             </ul>
@@ -574,14 +599,14 @@ export default async function ContestDetailPage({ params }: Props) {
 
         {officialEnrichment.lines.length > 0 && (
           <div className="mt-5 border-t border-gray-100 pt-4">
-            <p className="text-xs font-semibold text-gray-500 mb-2">공식 안내에서 확인한 항목</p>
+            <p className="text-xs font-semibold text-gray-500 mb-2">주요 확인 항목</p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {officialEnrichment.lines.map((line) => (
                 <p
                   key={line}
                   className="text-sm text-gray-700 leading-relaxed rounded-lg bg-gray-50 border border-gray-100 px-3 py-2"
                 >
-                  {line}
+                  {highlightInline(line)}
                 </p>
               ))}
             </div>
@@ -610,31 +635,14 @@ export default async function ContestDetailPage({ params }: Props) {
             <li><span className="font-semibold">title:</span> {contest.title}</li>
             <li><span className="font-semibold">organizer:</span> {contest.organizer || "미정"}</li>
             <li><span className="font-semibold">apply_end_at:</span> {contest.apply_end_at || "미정"}</li>
-            <li><span className="font-semibold">source_site:</span> {contest.source_site || "미정"}</li>
-            <li>
-              <span className="font-semibold">source_url:</span>{" "}
-              {contest.source_url ? (
-                <a href={contest.source_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
-                  {contest.source_url}
-                </a>
-              ) : "없음"}
-            </li>
-            <li>
-              <span className="font-semibold">official_source_url:</span>{" "}
-              {contest.official_source_url ? (
-                <a href={contest.official_source_url} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline break-all">
-                  {contest.official_source_url}
-                </a>
-              ) : "없음"}
-            </li>
           </ul>
         </section>
       )}
 
       {/* 플랫폼 안내 */}
       <section className="rounded-2xl border border-blue-50 bg-blue-50/40 px-5 py-4 text-sm text-gray-600 leading-relaxed">
-        공모전집은 공고 정보를 모아서 제공하는 플랫폼입니다.{" "}
-        <strong className="text-gray-800">참가 신청은 각 공고의 공식 사이트에서 직접 진행</strong>해 주세요.
+        공모전집은 공고 정보를 정리해 제공하는 플랫폼입니다.{" "}
+        <strong className="text-gray-800">참가 신청 전 최신 모집 요강과 접수 조건을 확인</strong>해 주세요.
         공고 정보 수정·삭제 요청은{" "}
         <Link href="/contact" className="text-blue-600 hover:underline font-semibold">
           문의 페이지

@@ -3,7 +3,6 @@ export interface BookmarkItem {
   title: string;
   organizer: string;
   apply_end_at: string;
-  source_site: string;
   saved_at: string;
 }
 
@@ -12,7 +11,6 @@ export interface BookmarkSource {
   title?: string | null;
   organizer?: string | null;
   apply_end_at?: string | null;
-  source_site?: string | null;
 }
 
 export interface StorageLike {

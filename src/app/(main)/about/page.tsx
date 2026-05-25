@@ -113,13 +113,11 @@ export default function AboutPage() {
       <section className="space-y-3">
         <h2 className="text-xl font-bold text-gray-900">정보 수집 방식</h2>
         <p className="text-sm text-gray-600 leading-relaxed">
-          공모전집은 캠퍼스픽 등 공개된 공모전·대외활동 정보 플랫폼의 공개 데이터를 수집·가공하여
-          제공합니다. 각 공고의 원본 출처는 상세 페이지에서 확인할 수 있으며, 중요한 내용은 반드시
-          원본 공고를 확인하시기 바랍니다.
+          공모전집은 공개된 모집 정보를 수집·정리하고, 마감일·대상·혜택·준비 포인트를 자체 기준으로
+          재구성해 제공합니다. 중요한 내용은 최신 모집 요강을 기준으로 확인하시기 바랍니다.
         </p>
         <p className="text-sm text-gray-500">
-          공고 정보의 정확성을 위해 최선을 다하고 있으나, 원본 공고 기관의 변경 사항이 즉시 반영되지
-          않을 수 있습니다.
+          공고 기관의 변경 사항이 즉시 반영되지 않을 수 있습니다.
         </p>
       </section>
 
