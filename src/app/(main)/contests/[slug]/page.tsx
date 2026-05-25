@@ -147,12 +147,20 @@ const ANALYSIS_TONE_CLASSES: Record<
 
 function getAnalysisIcon(label: string) {
   switch (label) {
+    case "지원 가치 점수":
     case "추천도":
       return Sparkles;
+    case "지원 난이도":
     case "준비 난이도":
       return Gauge;
+    case "예상 준비 기간":
+    case "마감 위험도":
     case "마감 긴급도":
       return Clock3;
+    case "초보자 적합도":
+      return Users;
+    case "포트폴리오 활용도":
+      return ClipboardCheck;
     case "혜택 명확도":
       return Gift;
     default:
@@ -692,14 +700,14 @@ export default async function ContestDetailPage({ params }: Props) {
         <div>
           <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
             <Sparkles className="w-5 h-5 text-blue-500" />
-            공모전집 분석
+            공모전집 분석 리포트
           </h2>
           <p className="text-sm text-gray-500 mt-1">
-            공고 내용, 마감일, 혜택, 준비 난이도를 종합해 지원 우선순위를 정리했습니다.
+            공고 내용, 마감일, 혜택, 준비 난이도, 포트폴리오 활용도를 종합해 지원 판단 기준을 정리했습니다.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           {contestAnalysis.metrics.map((metric) => {
             const Icon = getAnalysisIcon(metric.label);
             const tone = ANALYSIS_TONE_CLASSES[metric.tone];
@@ -738,6 +746,36 @@ export default async function ContestDetailPage({ params }: Props) {
                 {highlightInline(item)}
               </p>
             ))}
+          </div>
+          <div className="mt-5 grid grid-cols-1 lg:grid-cols-3 gap-4 border-t border-gray-100 pt-5">
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 mb-2">추천 대상</h3>
+              <ul className="space-y-2 text-sm leading-relaxed text-gray-600">
+                {contestAnalysis.recommendedTargets.map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
+                    <span>{highlightInline(item)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-gray-900 mb-2">주의할 점</h3>
+              <ul className="space-y-2 text-sm leading-relaxed text-gray-600">
+                {contestAnalysis.cautions.map((item) => (
+                  <li key={item} className="flex gap-2">
+                    <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-400" />
+                    <span>{highlightInline(item)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-4">
+              <h3 className="text-sm font-bold text-gray-900 mb-2">공모전집 한줄 판단</h3>
+              <p className="text-sm leading-relaxed text-gray-700">
+                {highlightInline(contestAnalysis.verdict)}
+              </p>
+            </div>
           </div>
         </div>
       </section>

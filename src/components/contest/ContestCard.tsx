@@ -56,7 +56,7 @@ export function ContestCard({ contest, variant = "default" }: ContestCardProps) 
             </p>
             <p className="text-xs text-gray-400 mt-0.5">{contest.organizer}</p>
             <p className="mt-1 text-[11px] font-semibold text-blue-600">
-              추천도 {analysis.score}점 · 난이도 {analysis.difficultyLabel}
+              지원 가치 {analysis.score}점 · 난이도 {analysis.difficultyLabel}
             </p>
           </div>
           <DeadlineBadge applyEndAt={contest.apply_end_at} />
@@ -111,7 +111,7 @@ export function ContestCard({ contest, variant = "default" }: ContestCardProps) 
           <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px]">
             <span className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 font-bold text-blue-700">
               <Sparkles className="h-3 w-3" />
-              추천도 {analysis.score}점
+              지원 가치 {analysis.score}점
             </span>
             <span className="inline-flex items-center rounded-full border border-gray-100 bg-gray-50 px-2.5 py-1 font-semibold text-gray-600">
               난이도 {analysis.difficultyLabel}

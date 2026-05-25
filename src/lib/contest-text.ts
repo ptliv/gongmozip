@@ -3,28 +3,48 @@ import type { Contest } from "@/types/contest";
 const JUNK_PATTERNS = [
   /^(home|menu|faq|q&a|login|logout|join|search)$/i,
   /^(홈|주메뉴|본문 바로가기|마이페이지|로그인|회원가입|검색|전체메뉴|메뉴|닫기|열기)$/,
-  /^(공지사항|자료실|첨부파일|첨부 파일|다운로드|이전글|다음글|목록|인쇄|공유)$/,
-  /^(개인정보처리방침|이용약관|사이트맵|고객센터|문의하기)$/,
+  /^(공지사항|자료실|첨부파일|첨부 파일|다운로드|이전글|다음글|목록|인쇄|공유|공유하기|프린트|목록으로)$/,
+  /^(개인정보처리방침|이용약관|사이트맵|고객센터|커뮤니티|문의하기|관련사이트)$/,
   /^(facebook|twitter|instagram|youtube|blog|naver|kakao)$/i,
 ];
 
 const JUNK_WORDS = [
   "마이페이지",
   "FAQ",
+  "Q&A",
   "첨부파일",
+  "첨부파일은 PC버전에서",
+  "PC버전에서 다운받아 확인",
   "HOME",
+  "홈",
   "주메뉴",
+  "주메뉴 바로가기",
   "본문 바로가기",
+  "하단링크 바로가기",
+  "메뉴 열기",
+  "메뉴 닫기",
   "로그인",
   "회원가입",
   "사이트맵",
+  "통합검색",
+  "검색하기",
   "개인정보처리방침",
   "이용약관",
+  "고객센터",
+  "커뮤니티",
+  "신청 및 확인",
+  "신청확인",
+  "접수확인",
+  "정보입력",
+  "공유하기",
+  "프린트",
+  "목록으로",
   "이전글",
   "다음글",
   "다운로드",
   "공지사항",
   "자료실",
+  "관련사이트",
 ];
 
 function decodeEntities(text: string): string {
@@ -99,37 +119,42 @@ function dateText(value?: string | null): string {
   return `${match[1]}년 ${Number(match[2])}월 ${Number(match[3])}일`;
 }
 
+function contestSubject(input: Partial<Contest>): string {
+  const type = input.type || "공고";
+  const field = input.field && input.field !== "기타" ? `${input.field} 분야` : "";
+  const category = input.category && input.category !== "기타" ? input.category : "";
+  const prefix = field || category;
+  if (!prefix) return `${type} 공고`;
+  return `${prefix} ${type}`;
+}
+
+function focusText(input: Partial<Contest>, text: string): string {
+  const haystack = `${text} ${input.title || ""} ${input.type || ""} ${input.category || ""} ${input.field || ""}`.toLowerCase();
+
+  if (input.benefit?.prize) return `${input.benefit.prize} 등 혜택 조건`;
+  if (/(인턴|직무|채용|실무)/.test(haystack)) return "직무 경험과 지원 동기";
+  if (/(서포터즈|기자단|대외활동|sns|콘텐츠)/.test(haystack)) return "활동 가능 시간과 콘텐츠 제작 경험";
+  if (/(디자인|영상|포스터|사진|작품|예술|문화)/.test(haystack)) return "작품 콘셉트와 제출 파일 형식";
+  if (/(해커톤|개발|데이터|ai|인공지능|앱|웹|소프트웨어)/.test(haystack)) return "문제 정의와 구현 가능성";
+  if (/(마케팅|광고|아이디어|기획|창업|사업계획)/.test(haystack)) return "문제 정의와 차별화 포인트";
+  if (/(논문|에세이|글쓰기|리포트)/.test(haystack)) return "주제 적합성과 근거 자료";
+  return "제출 조건과 준비 일정";
+}
+
 export function buildContestSummary(input: Partial<Contest>): string {
   const cleaned = cleanContestText(input.summary || input.description || "");
-  const hasMenuNoise =
-    JUNK_WORDS.filter((word) => cleaned.includes(word)).length > 0 ||
-    /(공식\/원문 안내|주메뉴 바로가기|본문 바로가기|하단링크|통합검색|정보입력 검색|HOME\s*>)/i.test(cleaned);
-  const useful = hasMenuNoise ? [] : splitSentences(cleaned).filter(isMeaningfulSentence);
-  const selected = useful.slice(0, 2);
-
-  if (selected.join(" ").length >= 80) {
-    return selected.join(" ");
-  }
-
-  const title = input.title || "이 공고";
   const organizer = input.organizer && input.organizer !== "미상" ? input.organizer : "주최 기관";
-  const type = input.type || "공고";
-  const field = input.field || input.category || "관련";
   const target = input.target?.length ? input.target.join(", ") : "관심 있는 지원자";
+  const subject = contestSubject(input);
+  const focus = focusText(input, cleaned);
   const deadline = input.apply_end_at ? ` 마감일은 ${dateText(input.apply_end_at)}입니다.` : "";
 
-  const fallback = [
-    `${organizer}에서 진행하는 ${type}입니다.`,
-    `${target}가 ${field} 분야 경험을 준비할 때 검토할 수 있는 공고입니다.${deadline}`,
-  ];
-
-  if (selected.length > 0) {
-    return [selected[0], fallback[1]].join(" ");
-  }
-
-  if (title.length > 0 && title !== "이 공고") {
-    return `${fallback.join(" ")} 공고명은 '${title}'입니다.`;
-  }
-
-  return fallback.join(" ");
+  return [
+    `${organizer}에서 진행하는 ${subject}입니다.`,
+    `${target}에게 적합하며, ${focus}을 중심으로 준비하면 좋습니다.`,
+    `${deadline} 세부 조건은 신청 페이지에서 최종 확인하는 것을 권장합니다.`,
+  ]
+    .join(" ")
+    .replace(/\s+/g, " ")
+    .trim();
 }

@@ -35,17 +35,36 @@ NOISE_LINE_PATTERNS = (
     "home",
     "faq",
     "q&a",
+    "홈",
     "로그인",
     "회원가입",
     "마이페이지",
     "주메뉴",
     "본문 바로가기",
+    "하단링크 바로가기",
+    "메뉴 열기",
+    "메뉴 닫기",
     "첨부파일",
     "첨부 파일",
+    "첨부파일은 pc버전에서",
+    "pc버전에서 다운받아 확인",
     "개인정보처리방침",
     "이용약관",
     "사이트맵",
     "고객센터",
+    "커뮤니티",
+    "통합검색",
+    "검색하기",
+    "신청 및 확인",
+    "신청확인",
+    "접수확인",
+    "정보입력",
+    "공유하기",
+    "프린트",
+    "목록으로",
+    "이전글",
+    "다음글",
+    "관련사이트",
     "공지사항",
     "자료실",
     "쿠키",
@@ -58,20 +77,40 @@ NOISE_LINE_PATTERNS = (
 JUNK_WORDS = (
     "마이페이지",
     "FAQ",
+    "Q&A",
     "첨부파일",
+    "첨부파일은 PC버전에서",
+    "PC버전에서 다운받아 확인",
     "HOME",
+    "홈",
     "주메뉴",
+    "주메뉴 바로가기",
     "본문 바로가기",
+    "하단링크 바로가기",
+    "메뉴 열기",
+    "메뉴 닫기",
     "로그인",
     "회원가입",
     "사이트맵",
+    "통합검색",
+    "검색하기",
     "개인정보처리방침",
     "이용약관",
+    "고객센터",
+    "커뮤니티",
+    "신청 및 확인",
+    "신청확인",
+    "접수확인",
+    "정보입력",
+    "공유하기",
+    "프린트",
+    "목록으로",
     "이전글",
     "다음글",
     "다운로드",
     "공지사항",
     "자료실",
+    "관련사이트",
 )
 
 JUNK_TEXT_PATTERN = re.compile(
@@ -143,14 +182,41 @@ def _is_noise_line(line: str) -> bool:
 def _fallback_summary(contest: dict) -> str:
     organizer = clean_str(contest.get("organizer")) or "주최기관"
     contest_type = clean_str(contest.get("type")) or "공고"
-    field = clean_str(contest.get("field")) or clean_str(contest.get("category")) or "관련"
+    field = clean_str(contest.get("field"))
+    category = clean_str(contest.get("category"))
+    subject = f"{field} 분야 {contest_type}" if field and field != "기타" else f"{category or contest_type} 공고"
     targets = _format_targets(contest)
     end = normalize_date(contest.get("apply_end_at") or "")
-    deadline = f" 마감일은 {end}입니다." if end else ""
+    deadline = f" 마감일은 {end}입니다." if end else " 마감일은 신청 페이지에서 확인해야 합니다."
+    focus = _summary_focus(contest)
     return (
-        f"{organizer}에서 진행하는 {contest_type}입니다. "
-        f"{targets}가 {field} 분야 경험을 준비할 때 검토하기 좋은 공고입니다.{deadline}"
+        f"{organizer}에서 진행하는 {subject}입니다. "
+        f"{targets}에게 적합하며, {focus}을 중심으로 준비하면 좋습니다."
+        f"{deadline} 세부 조건은 신청 페이지에서 최종 확인하는 것을 권장합니다."
     )
+
+
+def _summary_focus(contest: dict) -> str:
+    text = " ".join(
+        str(contest.get(key) or "")
+        for key in ("title", "summary", "description", "type", "category", "field")
+    ).lower()
+    benefit = contest.get("benefit") or {}
+    if isinstance(benefit, dict) and clean_str(benefit.get("prize")):
+        return f"{benefit.get('prize')} 등 혜택 조건"
+    if re.search(r"인턴|직무|채용|실무", text):
+        return "직무 경험과 지원 동기"
+    if re.search(r"서포터즈|기자단|대외활동|sns|콘텐츠", text):
+        return "활동 가능 시간과 콘텐츠 제작 경험"
+    if re.search(r"디자인|영상|포스터|사진|작품|예술|문화", text):
+        return "작품 콘셉트와 제출 파일 형식"
+    if re.search(r"해커톤|개발|데이터|ai|인공지능|앱|웹|소프트웨어", text):
+        return "문제 정의와 구현 가능성"
+    if re.search(r"마케팅|광고|아이디어|기획|창업|사업계획", text):
+        return "문제 정의와 차별화 포인트"
+    if re.search(r"논문|에세이|글쓰기|리포트", text):
+        return "주제 적합성과 근거 자료"
+    return "제출 조건과 준비 일정"
 
 
 def summarize_text(text: str, limit: int = 220) -> str:
@@ -435,16 +501,8 @@ def enrich_contest_content(contest: dict) -> dict:
     if description:
         contest["description"] = description
 
-    summary_source = official_text or source_text or description
-    summary = summarize_text(summary_source, limit=220)
-    if not summary or _is_noise_line(summary):
-        summary = _fallback_summary(contest)
-    if summary and (
-        not contest.get("summary")
-        or str(contest.get("summary")).strip() == str(contest.get("title", "")).strip()
-        or len(strip_html(contest.get("summary"))) < 50
-        or _is_noise_line(strip_html(contest.get("summary")))
-    ):
+    summary = _fallback_summary(contest)
+    if summary:
         contest["summary"] = summary
 
     raw_payload = contest.get("raw_payload")

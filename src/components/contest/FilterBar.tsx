@@ -17,6 +17,7 @@ import {
   TARGET_OPTIONS,
   STATUS_OPTIONS,
   ONLINE_OFFLINE_FILTER_OPTIONS,
+  ANALYSIS_FILTER_OPTIONS,
   SORT_OPTIONS,
   countActiveFilters,
   hasActiveFilters,
@@ -41,6 +42,7 @@ const FILTER_GROUPS = [
   { key: "target" as const, label: "대상", options: TARGET_OPTIONS },
   { key: "status" as const, label: "상태", options: STATUS_OPTIONS },
   { key: "online_offline" as const, label: "방식", options: ONLINE_OFFLINE_FILTER_OPTIONS },
+  { key: "analysis" as const, label: "분석", options: ANALYSIS_FILTER_OPTIONS },
 ] as const;
 
 // ----------------------------------------------------------

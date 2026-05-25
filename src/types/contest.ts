@@ -185,6 +185,13 @@ export interface Contest {
 
 export type FilterAll = "전체";
 export type SortBy = "latest" | "recommended" | "deadline" | "title";
+export type AnalysisFilter =
+  | "전체"
+  | "beginner"
+  | "portfolio_high"
+  | "low_deadline_risk"
+  | "prep_within_week"
+  | "score_80";
 
 export interface ContestFilter {
   search: string;
@@ -194,6 +201,7 @@ export interface ContestFilter {
   target: TargetGroup | FilterAll;
   status: ContestStatus | FilterAll;
   online_offline: OnlineOffline | FilterAll;
+  analysis: AnalysisFilter;
   sort_by: SortBy;
 }
 
@@ -205,6 +213,7 @@ export const DEFAULT_FILTER: ContestFilter = {
   target: "전체",
   status: "전체",
   online_offline: "전체",
+  analysis: "전체",
   sort_by: "latest",
 };
 

@@ -14,6 +14,7 @@ import {
   TARGET_GROUPS,
   CONTEST_STATUSES,
   ONLINE_OFFLINE_OPTIONS,
+  AnalysisFilter,
 } from "@/types/contest";
 
 // ----------------------------------------------------------
@@ -27,8 +28,17 @@ const PARAM_KEYS = {
   target: "target",
   status: "status",
   online_offline: "mode",
+  analysis: "fit",
   sort_by: "sort",
 } as const satisfies Record<keyof ContestFilter, string>;
+
+const ANALYSIS_FILTER_VALUES: readonly Exclude<AnalysisFilter, "전체">[] = [
+  "beginner",
+  "portfolio_high",
+  "low_deadline_risk",
+  "prep_within_week",
+  "score_80",
+];
 
 // ----------------------------------------------------------
 // URLSearchParams → ContestFilter
@@ -48,6 +58,7 @@ export function filterFromSearchParams(
     target: parseEnum(raw(PARAM_KEYS.target), TARGET_GROUPS, "전체"),
     status: parseEnum(raw(PARAM_KEYS.status), CONTEST_STATUSES, "전체"),
     online_offline: parseEnum(raw(PARAM_KEYS.online_offline), ONLINE_OFFLINE_OPTIONS, "전체"),
+    analysis: parseEnum(raw(PARAM_KEYS.analysis), ANALYSIS_FILTER_VALUES, "전체"),
     sort_by: parseSortBy(raw(PARAM_KEYS.sort_by)),
   };
 }
@@ -80,6 +91,9 @@ export function filterToSearchParams(filter: ContestFilter): URLSearchParams {
   }
   if (filter.online_offline !== DEFAULT_FILTER.online_offline) {
     params.set(PARAM_KEYS.online_offline, filter.online_offline);
+  }
+  if (filter.analysis !== DEFAULT_FILTER.analysis) {
+    params.set(PARAM_KEYS.analysis, filter.analysis);
   }
   if (filter.sort_by !== DEFAULT_FILTER.sort_by) {
     params.set(PARAM_KEYS.sort_by, filter.sort_by);

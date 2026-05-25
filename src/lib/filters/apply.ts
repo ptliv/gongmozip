@@ -1,5 +1,5 @@
 import { Contest, ContestFilter, TargetGroup } from "@/types/contest";
-import { getPublicRecommendationScore } from "@/lib/contest-analysis";
+import { buildPublicContestAnalysis, getPublicRecommendationScore } from "@/lib/contest-analysis";
 
 /**
  * 주어진 필터 상태를 공고 목록에 적용하여 필터링 + 정렬된 결과를 반환합니다.
@@ -51,7 +51,28 @@ export function applyFilters(contests: Contest[], filter: ContestFilter): Contes
     result = result.filter((c) => c.online_offline === filter.online_offline);
   }
 
-  // 8. 정렬
+  // 8. 공모전집 분석 기준
+  if (filter.analysis !== "전체") {
+    result = result.filter((contest) => {
+      const analysis = buildPublicContestAnalysis(contest);
+      switch (filter.analysis) {
+        case "beginner":
+          return analysis.filters.beginnerRecommended;
+        case "portfolio_high":
+          return analysis.filters.portfolioHigh;
+        case "low_deadline_risk":
+          return analysis.filters.deadlineRiskLow;
+        case "prep_within_week":
+          return analysis.filters.prepWithinWeek;
+        case "score_80":
+          return analysis.filters.score80Plus;
+        default:
+          return true;
+      }
+    });
+  }
+
+  // 9. 정렬
   result.sort((a, b) => {
     switch (filter.sort_by) {
       case "recommended":

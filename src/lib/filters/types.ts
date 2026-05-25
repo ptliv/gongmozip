@@ -12,6 +12,7 @@ import {
   TARGET_GROUPS,
   ONLINE_OFFLINE_OPTIONS,
   SortBy,
+  AnalysisFilter,
   DEFAULT_FILTER,
 } from "@/types/contest";
 
@@ -61,9 +62,18 @@ export const ONLINE_OFFLINE_FILTER_OPTIONS: Array<
 
 export const SORT_OPTIONS: Array<FilterOption<SortBy>> = [
   { value: "latest", label: "최신순" },
-  { value: "recommended", label: "추천순" },
+  { value: "recommended", label: "지원 가치순" },
   { value: "deadline", label: "마감임박순" },
   { value: "title", label: "제목순" },
+];
+
+export const ANALYSIS_FILTER_OPTIONS: Array<FilterOption<AnalysisFilter>> = [
+  { value: "전체", label: "전체" },
+  { value: "beginner", label: "초보자 추천" },
+  { value: "portfolio_high", label: "포트폴리오 높음" },
+  { value: "low_deadline_risk", label: "마감 위험 낮음" },
+  { value: "prep_within_week", label: "1주 이내 준비" },
+  { value: "score_80", label: "80점 이상" },
 ];
 
 // ----------------------------------------------------------
@@ -80,6 +90,7 @@ export function countActiveFilters(filter: ContestFilter): number {
   if (filter.target !== "전체") count++;
   if (filter.status !== "전체") count++;
   if (filter.online_offline !== "전체") count++;
+  if (filter.analysis !== "전체") count++;
   return count;
 }
 
@@ -92,6 +103,7 @@ export function hasActiveFilters(filter: ContestFilter): boolean {
     filter.field !== DEFAULT_FILTER.field ||
     filter.target !== DEFAULT_FILTER.target ||
     filter.status !== DEFAULT_FILTER.status ||
-    filter.online_offline !== DEFAULT_FILTER.online_offline
+    filter.online_offline !== DEFAULT_FILTER.online_offline ||
+    filter.analysis !== DEFAULT_FILTER.analysis
   );
 }
