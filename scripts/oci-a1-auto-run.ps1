@@ -6,6 +6,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$env:PYTHONWARNINGS = "ignore"
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 $ConfigPath = Join-Path $PSScriptRoot "oci-a1-config.json"
 $LauncherPath = Join-Path $PSScriptRoot "oci-a1-retry-launcher.ps1"
@@ -77,9 +78,21 @@ function Invoke-OciJson {
   } elseif ($profileData.ContainsKey("security_token_file")) {
     $authArgs += @("--auth", "security_token")
   }
-  $output = & oci @Arguments --profile $Profile --region $Region @authArgs --output json 2>&1
-  if ($LASTEXITCODE -ne 0) {
-    throw ($output | Out-String)
+  $errorPath = Join-Path $env:TEMP ("oci-a1-error-{0}.txt" -f ([guid]::NewGuid().ToString("N")))
+  try {
+    $output = & oci @Arguments --profile $Profile --region $Region @authArgs --output json 2> $errorPath
+    if ($LASTEXITCODE -ne 0) {
+      $errorText = if (Test-Path -LiteralPath $errorPath) {
+        Get-Content -LiteralPath $errorPath -Raw -ErrorAction SilentlyContinue
+      } else {
+        ""
+      }
+      throw (($errorText, ($output | Out-String)) -join "`n").Trim()
+    }
+  } finally {
+    if (Test-Path -LiteralPath $errorPath) {
+      Remove-Item -LiteralPath $errorPath -Force -ErrorAction SilentlyContinue
+    }
   }
   return ($output | Out-String | ConvertFrom-Json)
 }
@@ -172,10 +185,6 @@ function Build-LauncherConfig {
   $tenancy = [string]$profileData["tenancy"]
   if ([string]::IsNullOrWhiteSpace($tenancy)) {
     throw "Could not read tenancy OCID from $OciConfigPath profile [$Profile]."
-  }
-
-  if ($profileData.ContainsKey("region") -and -not [string]::IsNullOrWhiteSpace($profileData["region"])) {
-    $script:Region = [string]$profileData["region"]
   }
 
   Write-Step "Finding availability domains"

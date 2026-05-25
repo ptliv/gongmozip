@@ -7,6 +7,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$env:PYTHONWARNINGS = "ignore"
 
 function Write-Step {
   param([string]$Message)
@@ -57,24 +58,19 @@ function Build-LaunchPayload {
     compartmentId = Get-RequiredText $Config "compartmentId"
     displayName = if ([string]::IsNullOrWhiteSpace($Config.displayName)) { "a1-flex-auto" } else { [string]$Config.displayName }
     shape = "VM.Standard.A1.Flex"
+    subnetId = Get-RequiredText $Config "subnetId"
+    imageId = Get-RequiredText $Config "imageId"
+    assignPublicIp = if ($null -eq $Config.assignPublicIp) { $true } else { [bool]$Config.assignPublicIp }
     shapeConfig = [ordered]@{
       ocpus = [double]$Config.ocpus
       memoryInGBs = [double]$Config.memoryInGBs
-    }
-    createVnicDetails = [ordered]@{
-      subnetId = Get-RequiredText $Config "subnetId"
-      assignPublicIp = if ($null -eq $Config.assignPublicIp) { $true } else { [bool]$Config.assignPublicIp }
-    }
-    sourceDetails = [ordered]@{
-      sourceType = "image"
-      imageId = Get-RequiredText $Config "imageId"
     }
     metadata = [ordered]@{
       ssh_authorized_keys = $SshPublicKey
     }
   }
 
-  $payload.sourceDetails["bootVolumeSizeInGBs"] = if ($Config.bootVolumeSizeInGBs) { [int]$Config.bootVolumeSizeInGBs } else { 150 }
+  $payload["bootVolumeSizeInGbs"] = if ($Config.bootVolumeSizeInGBs) { [int]$Config.bootVolumeSizeInGBs } else { 150 }
   if ($Config.freeformTags) {
     $payload["freeformTags"] = $Config.freeformTags
   }
@@ -89,7 +85,7 @@ function Invoke-OciLaunch {
   )
 
   $payloadPath = Join-Path $env:TEMP ("oci-a1-launch-{0}.json" -f ([guid]::NewGuid().ToString("N")))
-  $Payload | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $payloadPath -Encoding UTF8
+  $Payload | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $payloadPath -Encoding ASCII
 
   $globalArgs = @()
   if (-not [string]::IsNullOrWhiteSpace($Config.profile)) {
@@ -109,9 +105,15 @@ function Invoke-OciLaunch {
       return @{ Success = $true; Output = "dry-run"; PayloadPath = $payloadPath }
     }
 
-    $output = & oci @globalArgs compute instance launch --from-json "file://$payloadPath" --output json 2>&1
-    $exitCode = $LASTEXITCODE
-    $text = ($output | Out-String).Trim()
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    try {
+      $output = & oci @globalArgs compute instance launch --from-json "file://$payloadPath" --output json 2>&1
+      $exitCode = $LASTEXITCODE
+    } finally {
+      $ErrorActionPreference = $previousErrorActionPreference
+    }
+    $text = ($output | ForEach-Object { $_.ToString() } | Out-String).Trim()
     return @{
       Success = ($exitCode -eq 0)
       Output = $text
@@ -126,7 +128,21 @@ function Invoke-OciLaunch {
 
 function Is-CapacityError {
   param([string]$Text)
-  return $Text -match "Out of host capacity|capacity|용량이 부족|Insufficient|LimitExceeded|InternalError"
+  $patterns = @(
+    "out of host capacity",
+    "capacity",
+    "insufficient",
+    "limitexceeded",
+    "internalerror",
+    "용량"
+  )
+  $lowerText = $Text.ToLowerInvariant()
+  foreach ($pattern in $patterns) {
+    if ($lowerText.Contains($pattern)) {
+      return $true
+    }
+  }
+  return $false
 }
 
 if (-not $DryRun) {
