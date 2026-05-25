@@ -14,6 +14,59 @@ function Write-Step {
   Write-Host "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] $Message"
 }
 
+function Send-DiscordNotification {
+  param(
+    [object]$Config,
+    [string]$Title,
+    [string]$Description,
+    [int]$Color = 3447003,
+    [hashtable]$Fields = @{}
+  )
+
+  $webhookUrl = ""
+  if ($Config -and $Config.PSObject.Properties.Name -contains "discordWebhookUrl") {
+    $webhookUrl = [string]$Config.discordWebhookUrl
+  }
+  if ([string]::IsNullOrWhiteSpace($webhookUrl) -and -not [string]::IsNullOrWhiteSpace($env:OCI_A1_DISCORD_WEBHOOK_URL)) {
+    $webhookUrl = $env:OCI_A1_DISCORD_WEBHOOK_URL
+  }
+  if ([string]::IsNullOrWhiteSpace($webhookUrl)) { return }
+
+  $fieldItems = @()
+  foreach ($key in $Fields.Keys) {
+    $value = [string]$Fields[$key]
+    if ($value.Length -gt 1000) {
+      $value = $value.Substring(0, 997) + "..."
+    }
+    $fieldItems += @{
+      name = [string]$key
+      value = if ([string]::IsNullOrWhiteSpace($value)) { "-" } else { $value }
+      inline = $true
+    }
+  }
+
+  $payload = @{
+    username = "OCI A1 Retry"
+    embeds = @(
+      @{
+        title = $Title
+        description = $Description
+        color = $Color
+        timestamp = (Get-Date).ToUniversalTime().ToString("o")
+        fields = $fieldItems
+      }
+    )
+  }
+
+  try {
+    $json = $payload | ConvertTo-Json -Depth 8
+    $body = [System.Text.Encoding]::UTF8.GetBytes($json)
+    Invoke-RestMethod -Uri $webhookUrl -Method Post -ContentType "application/json; charset=utf-8" -Body $body | Out-Null
+  } catch {
+    Write-Step "Discord notification failed: $($_.Exception.Message)"
+  }
+}
+
 function Require-Command {
   param([string]$Name)
   if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
@@ -133,8 +186,7 @@ function Is-CapacityError {
     "capacity",
     "insufficient",
     "limitexceeded",
-    "internalerror",
-    "용량"
+    "internalerror"
   )
   $lowerText = $Text.ToLowerInvariant()
   foreach ($pattern in $patterns) {
@@ -177,6 +229,19 @@ Write-Step "Config: $ConfigPath"
 Write-Step "Shape: VM.Standard.A1.Flex / OCPU=$ocpus / Memory=${memory}GB"
 Write-Step "ADs: $($adList -join ', ')"
 Write-Step "Delay: ${DelaySeconds}s / MaxAttempts: $(if ($MaxAttempts -gt 0) { $MaxAttempts } else { 'unlimited' })"
+Send-DiscordNotification -Config $config `
+  -Title "OCI A1 retry started" `
+  -Description "Started retrying the A1.Flex maximum free-tier shape." `
+  -Color 3447003 `
+  -Fields @{
+    Region = [string]$config.region
+    Shape = "VM.Standard.A1.Flex"
+    OCPU = [string]$ocpus
+    Memory = "${memory}GB"
+    BootVolume = "$(if ($config.bootVolumeSizeInGBs) { $config.bootVolumeSizeInGBs } else { 150 })GB"
+    Delay = "${DelaySeconds}s"
+    ADs = ($adList -join ", ")
+  }
 
 $attempt = 0
 while ($true) {
@@ -185,6 +250,15 @@ while ($true) {
   foreach ($ad in $cycleAds) {
     $attempt++
     if ($MaxAttempts -gt 0 -and $attempt -gt $MaxAttempts) {
+      Send-DiscordNotification -Config $config `
+        -Title "OCI A1 retry stopped" `
+        -Description "The retry launcher reached the maximum attempt count and stopped." `
+        -Color 15158332 `
+        -Fields @{
+          Attempts = [string]($attempt - 1)
+          Region = [string]$config.region
+          Shape = "4 OCPU / 24GB / 150GB"
+        }
       throw "Reached MaxAttempts=$MaxAttempts without creating an instance."
     }
 
@@ -200,8 +274,29 @@ while ($true) {
           Write-Host ("Instance OCID: {0}" -f $json.data.id)
           Write-Host ("Lifecycle: {0}" -f $json.data."lifecycle-state")
           Write-Host ("AD: {0}" -f $json.data."availability-domain")
+          Send-DiscordNotification -Config $config `
+            -Title "OCI A1 instance created" `
+            -Description "The instance launch request succeeded." `
+            -Color 3066993 `
+            -Fields @{
+              Instance = [string]$json.data.id
+              Lifecycle = [string]$json.data."lifecycle-state"
+              AD = [string]$json.data."availability-domain"
+              Region = [string]$config.region
+              Attempts = [string]$attempt
+              Shape = "4 OCPU / 24GB / 150GB"
+            }
         } catch {
           Write-Host $result.Output
+          Send-DiscordNotification -Config $config `
+            -Title "OCI A1 instance created" `
+            -Description "The launch request succeeded, but response JSON parsing failed." `
+            -Color 3066993 `
+            -Fields @{
+              Region = [string]$config.region
+              Attempts = [string]$attempt
+              Output = [string]$result.Output
+            }
         }
       }
       exit 0
@@ -211,9 +306,31 @@ while ($true) {
     if (Is-CapacityError $message) {
       Write-Step "Capacity/API retryable error. Will retry after delay."
       Write-Host ($message -split "`n" | Select-Object -First 8 | Out-String).Trim()
+      $summary = ($message -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -First 10) -join "`n"
+      Send-DiscordNotification -Config $config `
+        -Title "OCI A1 capacity unavailable" `
+        -Description "The launch request failed with a retryable capacity/API error. Retrying after ${DelaySeconds}s." `
+        -Color 15844367 `
+        -Fields @{
+          Attempt = [string]$attempt
+          Region = [string]$config.region
+          AD = [string]$ad
+          Shape = "4 OCPU / 24GB / 150GB"
+          Error = $summary
+        }
     } else {
       Write-Step "Non-capacity error. Stop to avoid repeating a bad request."
       Write-Host $message
+      Send-DiscordNotification -Config $config `
+        -Title "OCI A1 retry stopped - check config" `
+        -Description "The launcher stopped because the error was not recognized as a capacity issue." `
+        -Color 15158332 `
+        -Fields @{
+          Attempt = [string]$attempt
+          Region = [string]$config.region
+          AD = [string]$ad
+          Error = [string]$message
+        }
       exit 1
     }
 

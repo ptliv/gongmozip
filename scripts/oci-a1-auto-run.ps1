@@ -199,6 +199,17 @@ function Build-LauncherConfig {
 
   Write-Step "Finding latest A1-compatible image"
   $imageId = Select-Image -CompartmentId $tenancy
+  $existingDiscordWebhookUrl = ""
+  if (Test-Path -LiteralPath $ConfigPath) {
+    try {
+      $existingConfig = Get-Content -LiteralPath $ConfigPath -Raw -Encoding UTF8 | ConvertFrom-Json
+      if ($existingConfig.discordWebhookUrl) {
+        $existingDiscordWebhookUrl = [string]$existingConfig.discordWebhookUrl
+      }
+    } catch {
+      $existingDiscordWebhookUrl = ""
+    }
+  }
 
   $config = [ordered]@{
     profile = $Profile
@@ -217,6 +228,9 @@ function Build-LauncherConfig {
     freeformTags = @{
       createdBy = "gongmozip-oci-a1-retry"
     }
+  }
+  if (-not [string]::IsNullOrWhiteSpace($existingDiscordWebhookUrl)) {
+    $config["discordWebhookUrl"] = $existingDiscordWebhookUrl
   }
 
   $config | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $ConfigPath -Encoding UTF8
