@@ -8,10 +8,22 @@ param(
 
 $ErrorActionPreference = "Stop"
 $env:PYTHONWARNINGS = "ignore"
+$LogPath = Join-Path $PSScriptRoot "oci-a1-retry.log"
+
+function Write-Log {
+  param([string]$Message)
+  try {
+    Add-Content -LiteralPath $LogPath -Encoding UTF8 -Value $Message
+  } catch {
+    # Logging should never stop the retry loop.
+  }
+}
 
 function Write-Step {
   param([string]$Message)
-  Write-Host "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] $Message"
+  $line = "[$(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')] $Message"
+  Write-Host $line
+  Write-Log $line
 }
 
 function Send-DiscordNotification {
@@ -110,6 +122,7 @@ function Refresh-OciSession {
   $message = ($output | ForEach-Object { $_.ToString() } | Out-String).Trim()
   Write-Step "OCI session token refresh failed"
   Write-Host $message
+  Write-Log $message
   Send-DiscordNotification -Config $Config `
     -Title "OCI A1 retry stopped - login required" `
     -Description "The OCI browser session token could not be refreshed. Please run OCI login again." `
@@ -223,6 +236,7 @@ function Invoke-OciLaunch {
   if (-not [string]::IsNullOrWhiteSpace($Config.auth)) {
     $globalArgs += @("--auth", [string]$Config.auth)
   }
+  $globalArgs += @("--connection-timeout", "20", "--read-timeout", "240")
 
   try {
     if ($DryRun) {
@@ -259,7 +273,18 @@ function Is-CapacityError {
     "capacity",
     "insufficient",
     "limitexceeded",
-    "internalerror"
+    "internalerror",
+    "requestexception",
+    "timed out",
+    "timeout",
+    "temporarily unavailable",
+    "service unavailable",
+    "too many requests",
+    "connection reset",
+    "connection aborted",
+    "max retries exceeded",
+    "could not establish",
+    "network"
   )
   $lowerText = $Text.ToLowerInvariant()
   foreach ($pattern in $patterns) {
@@ -393,6 +418,7 @@ while ($true) {
     if (Is-CapacityError $message) {
       Write-Step "Capacity/API retryable error. Will retry after delay."
       Write-Host ($message -split "`n" | Select-Object -First 8 | Out-String).Trim()
+      Write-Log $message
       $summary = ($message -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -First 10) -join "`n"
       Send-DiscordNotification -Config $config `
         -Title "OCI A1 capacity unavailable" `
@@ -410,6 +436,7 @@ while ($true) {
     } else {
       Write-Step "Non-capacity error. Stop to avoid repeating a bad request."
       Write-Host $message
+      Write-Log $message
       Send-DiscordNotification -Config $config `
         -Title "OCI A1 retry stopped - check config" `
         -Description "The launcher stopped because the error was not recognized as a capacity issue." `
