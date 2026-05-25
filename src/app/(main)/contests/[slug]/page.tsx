@@ -17,6 +17,7 @@ import {
   Sparkles,
   Gauge,
   Gift,
+  ExternalLink,
 } from "lucide-react";
 import {
   getContestDetailPayload,
@@ -337,6 +338,36 @@ function getOfficialEnrichment(contest: ContestDetailPayload): {
   };
 }
 
+function normalizeExternalUrl(value?: string | null): string {
+  if (!value) return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function getApplyUrl(contest: ContestDetailPayload, enrichedUrl?: string): string {
+  const candidates = [
+    contest.official_url,
+    contest.official_source_url,
+    enrichedUrl,
+    contest.source_url,
+    contest.aggregator_source_url,
+  ];
+
+  for (const candidate of candidates) {
+    const url = normalizeExternalUrl(candidate);
+    if (url) return url;
+  }
+
+  return "";
+}
+
 function buildPreparationTips(contest: ContestDetailPayload): string[] {
   const haystack = `${contest.field} ${contest.category} ${contest.contest_type}`;
   const tips = [
@@ -540,6 +571,7 @@ export default async function ContestDetailPage({ params }: Props) {
   const strategyItems = buildStrategyItems(contest);
   const cautionItems = buildCautionItems(contest);
   const faqItems = buildFaq(contest);
+  const applyUrl = getApplyUrl(contest, officialEnrichment.url);
   const bookmarkItem = {
     slug: contest.slug,
     title: contest.title,
@@ -641,6 +673,18 @@ export default async function ContestDetailPage({ params }: Props) {
 
         <div className="flex flex-wrap gap-2 pt-1">
           <BookmarkToggleButton item={bookmarkItem} showLabel size="md" />
+          {applyUrl && (
+            <a
+              href={applyUrl}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-bold text-white shadow-sm transition-colors hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+              aria-label={`${contest.title} 신청 바로가기`}
+            >
+              <ExternalLink className="h-4 w-4" />
+              신청 바로가기
+            </a>
+          )}
         </div>
       </section>
 
@@ -925,13 +969,29 @@ export default async function ContestDetailPage({ params }: Props) {
 
       {/* 플랫폼 안내 */}
       <section className="rounded-2xl border border-blue-50 bg-blue-50/40 px-5 py-4 text-sm text-gray-600 leading-relaxed">
-        공모전집은 공고 정보를 정리해 제공하는 플랫폼입니다.{" "}
-        <strong className="text-gray-800">참가 신청 전 최신 모집 요강과 접수 조건을 확인</strong>해 주세요.
-        공고 정보 수정·삭제 요청은{" "}
-        <Link href="/contact" className="text-blue-600 hover:underline font-semibold">
-          문의 페이지
-        </Link>
-        를 이용해 주세요.
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <p>
+            공모전집은 공고 정보를 정리해 제공하는 플랫폼입니다.{" "}
+            <strong className="text-gray-800">참가 신청 전 최신 모집 요강과 접수 조건을 확인</strong>해 주세요.
+            공고 정보 수정·삭제 요청은{" "}
+            <Link href="/contact" className="text-blue-600 hover:underline font-semibold">
+              문의 페이지
+            </Link>
+            를 이용해 주세요.
+          </p>
+          {applyUrl && (
+            <a
+              href={applyUrl}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-bold text-blue-700 shadow-sm transition-colors hover:bg-blue-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+              aria-label={`${contest.title} 신청 바로가기`}
+            >
+              <ExternalLink className="h-4 w-4" />
+              신청 바로가기
+            </a>
+          )}
+        </div>
       </section>
 
       <section>
