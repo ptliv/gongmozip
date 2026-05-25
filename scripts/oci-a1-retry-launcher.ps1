@@ -74,9 +74,7 @@ function Build-LaunchPayload {
     }
   }
 
-  if ($Config.bootVolumeSizeInGBs) {
-    $payload.sourceDetails["bootVolumeSizeInGBs"] = [int]$Config.bootVolumeSizeInGBs
-  }
+  $payload.sourceDetails["bootVolumeSizeInGBs"] = if ($Config.bootVolumeSizeInGBs) { [int]$Config.bootVolumeSizeInGBs } else { 150 }
   if ($Config.freeformTags) {
     $payload["freeformTags"] = $Config.freeformTags
   }
@@ -138,8 +136,8 @@ if ($adList.Count -eq 0) {
   throw "availabilityDomains is empty. Add AD names such as 'xxxx:AP-SEOUL-1-AD-1'."
 }
 
-$ocpus = if ($config.ocpus) { [double]$config.ocpus } else { 1 }
-$memory = if ($config.memoryInGBs) { [double]$config.memoryInGBs } else { 6 }
+$ocpus = if ($config.ocpus) { [double]$config.ocpus } else { 4 }
+$memory = if ($config.memoryInGBs) { [double]$config.memoryInGBs } else { 24 }
 if ($ocpus -le 0 -or $memory -le 0) {
   throw "ocpus and memoryInGBs must be positive numbers."
 }

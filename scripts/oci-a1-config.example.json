@@ -10,9 +10,9 @@
     "example:AP-SEOUL-1-AD-2",
     "example:AP-SEOUL-1-AD-3"
   ],
-  "ocpus": 1,
-  "memoryInGBs": 6,
-  "bootVolumeSizeInGBs": 50,
+  "ocpus": 4,
+  "memoryInGBs": 24,
+  "bootVolumeSizeInGBs": 150,
   "assignPublicIp": true,
   "sshPublicKeyFile": "C:\\Users\\YOUR_NAME\\.ssh\\id_rsa.pub",
   "freeformTags": {
