@@ -4,7 +4,7 @@ import { ChevronRight } from "lucide-react";
 import { fetchContests } from "@/lib/supabase/contests";
 import { ContestGrid } from "@/components/ui/ContestGrid";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "최신 공고",

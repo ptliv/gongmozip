@@ -414,6 +414,154 @@ def fetch_campuspick_contests() -> list[dict]:
     return all_contests
 
 
+# ==================================================================
+# 상세 페이지 보강: fetch_campuspick_detail
+# ==================================================================
+
+_DETAIL_HEADERS = {
+    **HEADERS,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Referer": BASE_URL + "/",
+}
+
+# 상세 페이지 URL 패턴 (체크리스트 확인: /activity/view?id={id})
+DETAIL_URL = f"{BASE_URL}/contest/view?id={{external_id}}"
+
+
+def _extract_campuspick_json(html: str) -> Optional[dict]:
+    """
+    캠퍼스픽 상세 페이지 HTML에서 cp.activityview 데이터를 추출합니다.
+
+    체크리스트: 페이지 내 <script>에 JSON 데이터가 포함됨.
+    객체 경로: cp.activityview.data (또는 cp.activityview)
+
+    필드:
+      title, startDate, endDate, website,
+      company/company2/company3, image,
+      prizeTop, prizeTotal, prizeBenefit, description
+    """
+    import json
+
+    soup = BeautifulSoup(html, "lxml")
+
+    # <script> 태그에서 activityview 포함된 것 탐색
+    for script in soup.find_all("script"):
+        text = script.get_text()
+        if "activityview" not in text:
+            continue
+
+        # cp.activityview = {...} 패턴
+        patterns = [
+            r'cp\.activityview\s*=\s*(\{[\s\S]*?\})\s*(?:;|\n)',
+            r'"activityview"\s*:\s*(\{[\s\S]*?\})\s*(?:,|\})',
+            r'activityview\s*:\s*(\{[\s\S]*?\})\s*(?:,|\})',
+        ]
+        for pat in patterns:
+            m = re.search(pat, text)
+            if not m:
+                continue
+            raw = m.group(1)
+            try:
+                obj = json.loads(raw)
+                data = obj.get("data") if isinstance(obj, dict) else None
+                if data and data.get("id"):
+                    return data
+                if obj.get("id"):
+                    return obj
+            except json.JSONDecodeError:
+                pass
+
+    return None
+
+
+def fetch_campuspick_detail(contest: dict) -> Optional[dict]:
+    """
+    캠퍼스픽 상세 페이지(서버사이드 렌더링 HTML)에서 추가 정보를 수집합니다.
+
+    체크리스트:
+      - 정적 HTML (서버사이드 렌더링, JSON 포함)
+      - URL: /activity/view?id={숫자ID}
+      - JSON 경로: cp.activityview.data
+
+    Returns:
+        갱신할 필드 dict, 또는 None(실패)
+    """
+    external_id = contest.get("external_id")
+    if not external_id:
+        return None
+
+    url = DETAIL_URL.format(external_id=external_id)
+
+    try:
+        resp = requests.get(url, headers=_DETAIL_HEADERS, timeout=REQUEST_TIMEOUT)
+        resp.raise_for_status()
+        html = resp.text
+    except requests.RequestException as e:
+        logger.warning(f"[campuspick][detail] 요청 실패 id={external_id}: {e}")
+        return None
+
+    data = _extract_campuspick_json(html)
+    if not data:
+        logger.debug(f"[campuspick][detail] JSON 미발견 id={external_id}")
+        return None
+
+    update: dict = {}
+
+    # 제목
+    title = clean_str(data.get("title"))
+    if title:
+        update["title"] = title
+
+    # 날짜 (startDate, endDate → "YYYY-MM-DD")
+    start_raw = data.get("startDate")
+    end_raw = data.get("endDate")
+    if start_raw:
+        s = normalize_date(str(start_raw))
+        if s:
+            update["apply_start_at"] = s
+    if end_raw:
+        e = normalize_date(str(end_raw))
+        if e:
+            update["apply_end_at"] = e
+
+    # 주최기관 (company, company2, company3 중 첫 번째 유효값)
+    for field in ("company", "company2", "company3"):
+        org = clean_str(data.get(field))
+        if org:
+            update["organizer"] = org[:80]
+            break
+
+    # 포스터 이미지
+    image = clean_str(data.get("image"))
+    if image and image.startswith("http"):
+        update["poster_image_url"] = image
+
+    # 공식 홈페이지 URL
+    website = clean_str(data.get("website"))
+    if website and website.startswith("http"):
+        update["official_url"] = website
+
+    # 시상 정보 (prizeTop, prizeTotal)
+    prize_top = clean_str(str(data.get("prizeTop", "") or ""))
+    prize_total = clean_str(str(data.get("prizeTotal", "") or ""))
+    benefit_parts = []
+    if prize_top and prize_top not in ("0", "None"):
+        benefit_parts.append(f"최고상: {prize_top}")
+    if prize_total and prize_total not in ("0", "None"):
+        benefit_parts.append(f"총상금: {prize_total}")
+    if benefit_parts:
+        update["benefit"] = {"text": " / ".join(benefit_parts), "types": []}
+
+    # 상세 설명
+    description = data.get("description")
+    if description:
+        update["description"] = description
+
+    if update:
+        logger.debug(f"[campuspick][detail] 성공 id={external_id}: {list(update.keys())}")
+    return update if update else None
+
+
 def _log_collect_summary(contests: list[dict]) -> None:
     """Collection summary logs."""
     logger.info("=" * 60)

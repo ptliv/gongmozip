@@ -18,6 +18,55 @@ const CONTEST_SELECT = `
   verified_level, review_score, view_count, created_at, updated_at
 `;
 
+const PUBLIC_STATUSES = ["ongoing", "upcoming"] as const;
+
+function applyPublicVisibility(query: any) {
+  return query
+    .gte("verified_level", 1)
+    .in("status", PUBLIC_STATUSES)
+    .gt("apply_end_at", todayKey());
+}
+
+function normalizeDateKey(value?: string | null): string | null {
+  if (!value) return null;
+  const text = String(value).trim();
+  const full = text.match(/(\d{4})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+  if (full) {
+    return `${full[1]}-${full[2].padStart(2, "0")}-${full[3].padStart(2, "0")}`;
+  }
+  const short = text.match(/(\d{2})[.\-\/](\d{1,2})[.\-\/](\d{1,2})/);
+  if (short) {
+    return `20${short[1]}-${short[2].padStart(2, "0")}-${short[3].padStart(2, "0")}`;
+  }
+  return null;
+}
+
+function todayKey(): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Seoul",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const year = parts.find((part) => part.type === "year")?.value ?? "1970";
+  const month = parts.find((part) => part.type === "month")?.value ?? "01";
+  const day = parts.find((part) => part.type === "day")?.value ?? "01";
+  return `${year}-${month}-${day}`;
+}
+
+function isNotFutureDeadline(value?: string | null): boolean {
+  const key = normalizeDateKey(value);
+  return !key || key <= todayKey();
+}
+
+export function isPublicContest(contest: Contest): boolean {
+  return (
+    contest.verified_level >= 1 &&
+    PUBLIC_STATUSES.includes(contest.status as (typeof PUBLIC_STATUSES)[number]) &&
+    !isNotFutureDeadline(contest.apply_end_at)
+  );
+}
+
 export function normalizeContestRow(row: Partial<ContestRow>): Contest {
   return {
     id: String(row.id ?? ""),
@@ -70,7 +119,7 @@ export async function fetchContests(
   // 공개 페이지용: verified_level >= 1 (자동공개 또는 관리자 검수 완료)
   // 관리자 페이지는 verified_only: false 를 명시적으로 전달해 전체 조회
   if (filter?.verified_only === true) {
-    query = query.gte("verified_level", 1);
+    query = applyPublicVisibility(query);
   }
 
   if (filter?.status && filter.status !== "전체") {
@@ -105,7 +154,8 @@ export async function fetchContests(
 
   const { data, error } = await query;
   if (error) throw new Error(`[fetchContests] ${error.message}`);
-  return ((data ?? []) as ContestRow[]).map((row) => normalizeContestRow(row));
+  const contests = ((data ?? []) as ContestRow[]).map((row) => normalizeContestRow(row));
+  return filter?.verified_only === true ? contests.filter(isPublicContest) : contests;
 }
 
 export async function fetchContestBySlug(
@@ -122,14 +172,15 @@ export async function fetchContestBySlug(
       .from("contests")
       .select(CONTEST_SELECT)
       .eq("slug", candidate);
-    if (verifiedOnly) q = q.gte("verified_level", 1);
+    if (verifiedOnly) q = applyPublicVisibility(q);
     const direct = await q.maybeSingle();
 
     if (direct.error && direct.error.code !== "PGRST116") {
       throw new Error(`[fetchContestBySlug] ${direct.error.message}`);
     }
     if (direct.data) {
-      return normalizeContestRow(direct.data as ContestRow);
+      const contest = normalizeContestRow(direct.data as ContestRow);
+      return !verifiedOnly || isPublicContest(contest) ? contest : null;
     }
   }
 
@@ -142,10 +193,12 @@ export async function fetchContestBySlug(
 
   // Step 2: slug가 null인 행 전체 조회 → computed slug와 비교
   // (slug=null 인 공고는 title+source_site+external_id로 슬러그가 동적 생성됨)
-  const { data: nullSlugData, error: nullSlugError } = await (supabase as any)
+  let nullSlugQuery = (supabase as any)
     .from("contests")
     .select(CONTEST_SELECT)
     .is("slug", null);
+  if (verifiedOnly) nullSlugQuery = applyPublicVisibility(nullSlugQuery);
+  const { data: nullSlugData, error: nullSlugError } = await nullSlugQuery;
 
   if (nullSlugError && nullSlugError.code !== "PGRST116") {
     console.error(`[fetchContestBySlug:null-slug] ${nullSlugError.message}`);
@@ -153,7 +206,10 @@ export async function fetchContestBySlug(
     const nullMatch = ((nullSlugData ?? []) as ContestRow[]).find((row) =>
       normalizedCandidates.has(getContestSlug(row))
     );
-    if (nullMatch) return normalizeContestRow(nullMatch);
+    if (nullMatch) {
+      const contest = normalizeContestRow(nullMatch);
+      return !verifiedOnly || isPublicContest(contest) ? contest : null;
+    }
   }
 
   // Step 3: source_site + external_id suffix 추출 후 직접 조회
@@ -172,27 +228,31 @@ export async function fetchContestBySlug(
   for (const pair of suffixPairs) {
     const [sourceSite, externalId] = pair.split("|");
     if (!sourceSite || !externalId) continue;
-    const fallbackBySuffix = await (supabase as any)
+    let suffixQuery = (supabase as any)
       .from("contests")
       .select(CONTEST_SELECT)
       .eq("source_site", sourceSite)
-      .eq("external_id", externalId)
-      .maybeSingle();
+      .eq("external_id", externalId);
+    if (verifiedOnly) suffixQuery = applyPublicVisibility(suffixQuery);
+    const fallbackBySuffix = await suffixQuery.maybeSingle();
 
     if (fallbackBySuffix.error && fallbackBySuffix.error.code !== "PGRST116") {
       throw new Error(`[fetchContestBySlug:fallback:suffix] ${fallbackBySuffix.error.message}`);
     }
     if (fallbackBySuffix.data) {
-      return normalizeContestRow(fallbackBySuffix.data as ContestRow);
+      const contest = normalizeContestRow(fallbackBySuffix.data as ContestRow);
+      return !verifiedOnly || isPublicContest(contest) ? contest : null;
     }
   }
 
   // Step 4: 비정규화된 non-null slug 행 스캔 (legacy/encoded slug 대응)
   // null slug는 Step 2에서 처리했으므로 여기서는 non-null만 조회
-  const { data, error } = await (supabase as any)
+  let fallbackQuery = (supabase as any)
     .from("contests")
     .select(CONTEST_SELECT)
-    .not("slug", "is", null)
+    .not("slug", "is", null);
+  if (verifiedOnly) fallbackQuery = applyPublicVisibility(fallbackQuery);
+  const { data, error } = await fallbackQuery
     .order("updated_at", { ascending: false })
     .limit(5000);
 
@@ -204,7 +264,9 @@ export async function fetchContestBySlug(
     normalizedCandidates.has(getContestSlug(row))
   );
 
-  return match ? normalizeContestRow(match) : null;
+  if (!match) return null;
+  const contest = normalizeContestRow(match);
+  return !verifiedOnly || isPublicContest(contest) ? contest : null;
 }
 
 export async function fetchContestById(id: string): Promise<Contest | null> {

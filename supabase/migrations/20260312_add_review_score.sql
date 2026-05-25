@@ -10,7 +10,7 @@ alter table contests
 
 comment on column contests.review_score is
   '자동 품질 점수 0~100. 크롤러가 upsert 시 계산. 수동 등록 공고는 null. '
-  '80↑=자동공개(verified_level=1), 50~79=검수대기(0), 50↓=저품질(0)';
+  '75↑+상세설명 충족=자동공개(verified_level=1), 50~74=검수대기(0), 50↓=저품질(0)';
 
 -- 2. 점수 조회용 인덱스
 create index if not exists idx_contests_review_score

@@ -4,7 +4,7 @@ import { ContestGrid } from "@/components/ui/ContestGrid";
 import { getDeadlineContestsPayload } from "@/lib/supabase/public-contest-queries";
 import { canonicalUrl } from "@/lib/seo";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "마감임박 공고",

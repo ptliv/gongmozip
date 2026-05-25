@@ -3,7 +3,7 @@ import { ContestGrid } from "@/components/ui/ContestGrid";
 import { getDeadline7DaysContestsPayload } from "@/lib/supabase/public-contest-queries";
 import { canonicalUrl } from "@/lib/seo";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "7일 내 마감 공고",

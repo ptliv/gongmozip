@@ -1,0 +1,8 @@
+.env.local
+.vercel
+.git
+.next
+node_modules
+scripts/**/__pycache__/**
+scripts/debug/**
+scripts/vercel_ascii_hostname_patch.cjs

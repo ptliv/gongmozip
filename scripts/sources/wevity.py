@@ -1742,6 +1742,199 @@ def _classify_db_error(error_msg: str, contest: dict) -> str:
     return "unknown"
 
 
+# ==================================================================
+# 상세 페이지 보강: fetch_wevity_detail
+# ==================================================================
+
+_DETAIL_HEADERS = {
+    **HEADERS,
+    "Referer": BASE_URL + "/",
+}
+
+_DATE_RANGE_RE_WEVITY = re.compile(
+    r"(\d{4}[.\-]\d{1,2}[.\-]\d{1,2})\s*~\s*(\d{4}[.\-]\d{1,2}[.\-]\d{1,2})"
+)
+
+
+def _parse_wevity_detail_soup(soup: BeautifulSoup) -> Optional[dict]:
+    """
+    위비티 상세 페이지 soup에서 추가 필드를 추출합니다.
+
+    체크리스트 셀렉터:
+      제목:    .view-tit h3
+      메타:    table.view-info  (th + td 쌍)
+      본문:    div.view-body
+      이미지:  div.view-thumb img  (src)
+      공식URL: div.view-info a[href^="http"] (wevity.com 제외)
+    날짜 형식: "2026.03.12 ~ 2026.03.25"
+    """
+    update: dict = {}
+
+    # ── 제목 ──────────────────────────────────────────────────────
+    title_el = soup.select_one(".view-tit h3, h3.subject")
+    if title_el:
+        t = clean_str(title_el.get_text(strip=True))
+        if t:
+            update["title"] = t
+
+    # ── 메타 테이블 (th → td 쌍) ──────────────────────────────────
+    meta: dict[str, str] = {}
+    for table in soup.select("table.view-info, .view-info table, .view-info"):
+        for row in table.select("tr"):
+            ths = row.select("th")
+            tds = row.select("td")
+            for th, td in zip(ths, tds):
+                label = clean_str(th.get_text(strip=True))
+                value = clean_str(td.get_text(" ", strip=True))
+                if label and value:
+                    meta[label] = value
+        if meta:
+            break
+
+    # 접수기간 → apply_start_at / apply_end_at
+    for date_label in ("접수기간", "모집기간", "기간"):
+        if date_label in meta:
+            m = _DATE_RANGE_RE_WEVITY.search(meta[date_label])
+            if m:
+                s = normalize_date(m.group(1))
+                e = normalize_date(m.group(2))
+                if s:
+                    update["apply_start_at"] = s
+                if e:
+                    update["apply_end_at"] = e
+            break
+
+    # 주최 / 주관
+    parts = []
+    for label in ("주최", "주관"):
+        v = meta.get(label, "")
+        if v and v not in parts:
+            parts.append(v)
+    if parts:
+        update["organizer"] = ", ".join(parts)[:80]
+
+    # 응모대상
+    for label in ("응모대상", "참가대상"):
+        if label in meta:
+            targets = [t.strip() for t in re.split(r"[,/·]", meta[label]) if t.strip()]
+            if targets:
+                update["target"] = targets[:6]
+            break
+
+    # 시상/혜택
+    for label in ("시상/혜택", "시상내역", "혜택"):
+        if label in meta:
+            update["benefit"] = {"text": meta[label], "types": []}
+            break
+
+    # 참가지역
+    if "참가지역" in meta:
+        update["region"] = meta["참가지역"]
+
+    # 공식 홈페이지 URL (메타 테이블 내 링크)
+    for label in ("홈페이지",):
+        if label in meta:
+            hp = normalize_url(meta[label].split()[0])  # 공백 전까지만
+            if hp and hp.startswith("http"):
+                update["official_url"] = hp
+            break
+
+    # 홈페이지 버튼 탐색 (테이블 외부 링크 버튼)
+    if not update.get("official_url"):
+        for a in soup.select(".view-info a[href], .view-btn a[href], a.btn[href]"):
+            href = a.get("href", "")
+            if href.startswith("http") and "wevity.com" not in href:
+                update["official_url"] = href
+                break
+
+    # ── 포스터 이미지 ──────────────────────────────────────────────
+    thumb = soup.select_one("div.view-thumb img, .view-img img, .view-poster img")
+    if thumb:
+        src = thumb.get("src") or thumb.get("data-src")
+        if src:
+            update["poster_image_url"] = normalize_url(src, BASE_URL)
+
+    # ── 상세 본문 (HTML 그대로) ───────────────────────────────────
+    body = soup.select_one("div.view-body, div.view-con")
+    if body:
+        update["description"] = str(body)
+
+    return update if update else None
+
+
+def fetch_wevity_detail(contest: dict) -> Optional[dict]:
+    """
+    위비티 상세 페이지에서 추가 정보(본문, 이미지, 공식URL, 날짜 등)를 수집합니다.
+
+    전략:
+      1차) requests + BeautifulSoup (빠름)
+      2차) Playwright JS 렌더링 (제목이 정적 HTML에 없을 때만)
+
+    Returns:
+        갱신할 필드 dict, 또는 None(실패)
+    """
+    url = contest.get("official_source_url") or contest.get("source_url")
+    if not url:
+        return None
+
+    external_id = contest.get("external_id", "?")
+
+    # ── 1차: requests ─────────────────────────────────────────────
+    try:
+        resp = requests.get(url, headers=_DETAIL_HEADERS, timeout=REQUEST_TIMEOUT)
+        resp.raise_for_status()
+        html = _decode_html(resp)
+        soup = BeautifulSoup(html, "lxml")
+
+        # 제목이 정적 HTML에 있으면 바로 파싱
+        if soup.select_one(".view-tit h3, h3.subject"):
+            update = _parse_wevity_detail_soup(soup)
+            if update:
+                logger.debug(f"[wevity][detail] requests 성공: ix={external_id}")
+                return update
+
+    except requests.RequestException as e:
+        logger.warning(f"[wevity][detail] 요청 실패 ix={external_id}: {e}")
+        return None
+
+    # ── 2차: Playwright (JS 렌더링) ──────────────────────────────
+    if os.getenv("CRAWLER_DETAIL_PLAYWRIGHT", "false").lower() != "true":
+        logger.debug(f"[wevity][detail] Playwright fallback 비활성화: ix={external_id}")
+        return None
+
+    logger.info(f"[wevity][detail] JS 렌더링 필요 → Playwright: ix={external_id}")
+    try:
+        from playwright.sync_api import sync_playwright
+        from playwright.sync_api import TimeoutError as PWTimeout
+    except ImportError:
+        logger.warning("[wevity][detail] playwright 미설치 → 상세 건너뜀")
+        return None
+
+    try:
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True, args=["--no-sandbox"])
+            ctx = browser.new_context(user_agent=HEADERS["User-Agent"], locale="ko-KR")
+            pw_page = ctx.new_page()
+            try:
+                pw_page.goto(url, wait_until="domcontentloaded", timeout=30_000)
+                pw_page.wait_for_timeout(2_500)
+            except PWTimeout:
+                logger.warning(f"[wevity][detail][playwright] 타임아웃: {url}")
+            html = pw_page.content()
+            ctx.close()
+            browser.close()
+
+        soup = BeautifulSoup(html, "lxml")
+        update = _parse_wevity_detail_soup(soup)
+        if update:
+            logger.debug(f"[wevity][detail][playwright] 성공: ix={external_id}")
+        return update
+
+    except Exception as e:
+        logger.error(f"[wevity][detail][playwright] 오류 ix={external_id}: {e}")
+        return None
+
+
 def _print_final_summary(summary: dict) -> None:
     """최종 실행 결과 요약 블록을 출력합니다."""
     logger.info("")

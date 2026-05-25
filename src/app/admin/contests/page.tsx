@@ -4,6 +4,8 @@ import { Plus } from "lucide-react";
 import { fetchContests } from "@/lib/supabase/contests";
 import { ContestTable } from "@/components/admin/ContestTable";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = { title: "공고 관리" };
 
 export default async function AdminContestsPage() {

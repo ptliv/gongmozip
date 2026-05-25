@@ -9,6 +9,8 @@ interface Props {
   params: { id: string };
 }
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   if (params.id === "new") return { title: "공고 등록" };
   const contest = await fetchContestById(params.id).catch(() => null);

@@ -2,11 +2,11 @@ import { MetadataRoute } from "next";
 import { CONTEST_TYPES, CONTEST_FIELDS, CONTEST_CATEGORIES } from "@/types/contest";
 import { fetchContests } from "@/lib/supabase/contests";
 import { slugifyContestTitle } from "@/lib/slug";
+import { getSiteUrl } from "@/lib/seo";
 
 export const revalidate = 3600;
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://gongmozip.com";
+const BASE_URL = getSiteUrl();
 
 function fieldToSlug(field: string): string {
   return field.replace(/·/g, "-");
@@ -19,7 +19,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages: MetadataRoute.Sitemap = [
     { url: BASE_URL,                        lastModified: now, changeFrequency: "daily",   priority: 1.0 },
     { url: `${BASE_URL}/contests`,          lastModified: now, changeFrequency: "hourly",  priority: 0.9 },
-    { url: `${BASE_URL}/deadline-soon`,     lastModified: now, changeFrequency: "hourly",  priority: 0.8 },
+    { url: `${BASE_URL}/deadline`,          lastModified: now, changeFrequency: "hourly",  priority: 0.8 },
+    { url: `${BASE_URL}/deadline/7days`,    lastModified: now, changeFrequency: "hourly",  priority: 0.75 },
     { url: `${BASE_URL}/latest`,            lastModified: now, changeFrequency: "hourly",  priority: 0.8 },
     // 신뢰/정책 페이지 (/adsense-readiness 는 noindex이므로 제외)
     { url: `${BASE_URL}/about`,             lastModified: now, changeFrequency: "monthly", priority: 0.5 },
@@ -53,7 +54,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // ── 공고 상세 페이지 /contests/[slug] ─────────────────────
-  const contests = await fetchContests().catch(() => []);
+  const contests = await fetchContests({ verified_only: true }).catch(() => []);
   const contestPages: MetadataRoute.Sitemap = contests.map((c) => ({
     url: `${BASE_URL}/contests/${encodeURIComponent(c.slug)}`,
     lastModified: new Date(c.updated_at),

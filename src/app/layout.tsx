@@ -14,6 +14,9 @@ export const metadata: Metadata = {
   description:
     "공모전, 대외활동, 인턴십 정보를 한곳에서 찾는 플랫폼 공모전집. 대학생 공모전과 마감 임박 공고를 빠르게 확인하세요.",
   keywords: ["공모전", "대외활동", "인턴십", "청년", "대학생", "취업", "공모전집"],
+  alternates: {
+    canonical: SITE_URL,
+  },
   openGraph: {
     title: "공모전집 | 공모전·대외활동·인턴십 정보 플랫폼",
     description:

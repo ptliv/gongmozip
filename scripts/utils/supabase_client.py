@@ -10,14 +10,16 @@ upsert 기준: source_site + external_id
 """
 
 import os
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from dotenv import load_dotenv
 from supabase import create_client, Client
 
 from utils import logger
 from utils.auto_score import score_contest, decide_verified_level, get_score_label
+from utils.normalize import normalize_date
 
 # .env.local 또는 .env 파일에서 환경변수 로드
 # GitHub Actions에서는 secrets로 주입되므로 load_dotenv는 무시됩니다.
@@ -36,6 +38,10 @@ CONTEST_STATUS_CANCELED = "canceled"
 # 크롤러가 신규 저장 시 사용하는 기본 status
 # 위비티 등 외부 사이트에서 수집한 공고는 현재 모집 중인 것으로 간주
 CRAWLED_DEFAULT_STATUS = CONTEST_STATUS_ONGOING
+
+
+def _today_key() -> str:
+    return datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
 
 
 def get_supabase_client() -> Client:
@@ -89,6 +95,11 @@ def upsert_contest(client: Client, contest: dict) -> dict:
     source_site = contest.get("source_site", "")
     external_id = contest.get("external_id", "")
 
+    for date_field in ("apply_start_at", "apply_end_at"):
+        normalized = normalize_date(contest.get(date_field) or "")
+        if normalized:
+            contest[date_field] = normalized
+
     # 공통 필드 강제 설정
     # contests_status_check 허용값: upcoming | ongoing | closed | canceled
     # 크롤링한 공고는 현재 모집 중으로 간주 → CRAWLED_DEFAULT_STATUS = "ongoing"
@@ -98,7 +109,7 @@ def upsert_contest(client: Client, contest: dict) -> dict:
 
     # ── 자동 품질 점수화 ──────────────────────────────────────────────
     review_score = score_contest(contest)
-    auto_level   = decide_verified_level(review_score)
+    auto_level   = decide_verified_level(review_score, contest)
     contest["review_score"]  = review_score
     contest["verified_level"] = auto_level
     logger.info(
@@ -177,7 +188,7 @@ def close_expired_contests(
             "candidate_samples": list[dict],
         }
     """
-    today = date.today().isoformat()          # "YYYY-MM-DD"
+    today = _today_key()          # "YYYY-MM-DD"
     target_statuses = [CONTEST_STATUS_ONGOING, CONTEST_STATUS_UPCOMING]
 
     summary: dict = {
@@ -199,7 +210,7 @@ def close_expired_contests(
             client.table("contests")
             .select("id, title, apply_end_at, status, source_site")
             .in_("status", target_statuses)
-            .lt("apply_end_at", today)
+            .lte("apply_end_at", today)
             .not_.is_("apply_end_at", "null")
         )
         if source_site:
@@ -274,6 +285,160 @@ def close_expired_contests(
                 })
 
     _print_close_summary(summary)
+    return summary
+
+
+def purge_expired_contests(
+    client: Client,
+    source_site: Optional[str] = None,
+    dry_run: bool = False,
+) -> dict:
+    """
+    apply_end_at이 오늘 이전 또는 오늘인 공고를 DB에서 삭제합니다.
+
+    AdSense 심사 표면에 마감 공고가 대량 노출되지 않도록 크롤링 실행 후
+    close_expired_contests() 다음 단계에서 사용합니다.
+    """
+    today = _today_key()
+    summary: dict = {
+        "today": today,
+        "checked": 0,
+        "deleted": 0,
+        "failed": 0,
+        "failed_samples": [],
+        "candidate_samples": [],
+    }
+
+    mode = "DRY-RUN" if dry_run else "LIVE"
+    logger.info(f"[purge_expired] 마감 공고 폐기 시작 [{mode}] | 기준일: {today}")
+
+    try:
+        query = (
+            client.table("contests")
+            .select("id, title, apply_end_at, status, source_site")
+            .not_.is_("apply_end_at", "null")
+        )
+        if source_site:
+            query = query.eq("source_site", source_site)
+        response = query.limit(5000).execute()
+        rows = response.data or []
+        candidates = []
+        for row in rows:
+            normalized_end = normalize_date(row.get("apply_end_at") or "")
+            if normalized_end and normalized_end <= today:
+                candidates.append(row)
+    except Exception as e:
+        logger.error(f"[purge_expired] 후보 조회 실패: {e}")
+        return summary
+
+    summary["checked"] = len(candidates)
+    summary["candidate_samples"] = candidates[:5]
+    logger.info(f"[purge_expired] 폐기 후보: {len(candidates)}건")
+
+    if candidates:
+        logger.info("[purge_expired] 후보 샘플 (최대 5건):")
+        for c in candidates[:5]:
+            source = c.get("source_site") or "manual"
+            logger.info(
+                f"  id={c['id'][:8]}... "
+                f"status={c.get('status','?'):<8} "
+                f"apply_end_at={c.get('apply_end_at','?')} "
+                f"source={source:<10} "
+                f"title={c.get('title','')[:40]}"
+            )
+
+    if not candidates or dry_run:
+        return summary
+
+    BATCH_SIZE = 100
+    candidate_ids = [c["id"] for c in candidates]
+    for batch_start in range(0, len(candidate_ids), BATCH_SIZE):
+        batch_ids = candidate_ids[batch_start : batch_start + BATCH_SIZE]
+        try:
+            client.table("contests").delete().in_("id", batch_ids).execute()
+            summary["deleted"] += len(batch_ids)
+        except Exception as e:
+            err_msg = str(e)
+            logger.error(f"[purge_expired] 배치 삭제 실패: {err_msg}")
+            summary["failed"] += len(batch_ids)
+            for cid in batch_ids[:5]:
+                summary["failed_samples"].append({"id": cid, "error": err_msg[:120]})
+
+    logger.info(
+        f"[purge_expired] 완료 | checked={summary['checked']} "
+        f"deleted={summary['deleted']} failed={summary['failed']}"
+    )
+    return summary
+
+
+def rescore_contests(
+    client: Client,
+    source_site: Optional[str] = None,
+    dry_run: bool = False,
+    limit: int = 5000,
+) -> dict:
+    """
+    Recalculate review_score for existing contests.
+
+    verified_level >= 2 is treated as an operator decision and is preserved.
+    Other rows get verified_level 1 only when the score and future-deadline
+    rules pass.
+    """
+    summary: dict = {
+        "checked": 0,
+        "updated": 0,
+        "skipped_admin_verified": 0,
+        "failed": 0,
+        "failed_samples": [],
+    }
+    mode = "DRY-RUN" if dry_run else "LIVE"
+    logger.info(f"[rescore] 자동 리뷰 점수 재계산 시작 [{mode}]")
+
+    try:
+        query = client.table("contests").select("*").limit(limit)
+        if source_site:
+            query = query.eq("source_site", source_site)
+        rows = query.execute().data or []
+    except Exception as e:
+        logger.error(f"[rescore] 대상 조회 실패: {e}")
+        return summary
+
+    summary["checked"] = len(rows)
+
+    for row in rows:
+        contest_id = row.get("id")
+        try:
+            for date_field in ("apply_start_at", "apply_end_at"):
+                normalized = normalize_date(row.get(date_field) or "")
+                if normalized:
+                    row[date_field] = normalized
+
+            score = score_contest(row)
+            existing_level = int(row.get("verified_level") or 0)
+            payload = {"review_score": score}
+
+            if existing_level >= 2:
+                summary["skipped_admin_verified"] += 1
+            else:
+                payload["verified_level"] = decide_verified_level(score, row)
+
+            if dry_run:
+                summary["updated"] += 1
+                continue
+
+            client.table("contests").update(payload).eq("id", contest_id).execute()
+            summary["updated"] += 1
+        except Exception as e:
+            summary["failed"] += 1
+            err_msg = str(e)
+            logger.error(f"[rescore] 점수 갱신 실패 id={contest_id}: {err_msg}")
+            if len(summary["failed_samples"]) < 5:
+                summary["failed_samples"].append({"id": contest_id, "error": err_msg[:120]})
+
+    logger.info(
+        f"[rescore] 완료 | checked={summary['checked']} updated={summary['updated']} "
+        f"admin_preserved={summary['skipped_admin_verified']} failed={summary['failed']}"
+    )
     return summary
 
 

@@ -7,6 +7,8 @@ import { fetchContests } from "@/lib/supabase/contests";
 import { getDeadlineSoonContests, getLatestContests } from "@/lib/contest";
 import { getFacetOptionsPayload } from "@/lib/supabase/public-contest-queries";
 
+export const dynamic = "force-dynamic";
+
 export default async function HomePage() {
   const allContests = await fetchContests({ verified_only: true }).catch((e: unknown) => {
     console.error("[HomePage] fetchContests 실패:", e);

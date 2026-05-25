@@ -1,7 +1,7 @@
 import { createServerClient } from "@/lib/supabase/server";
 import type { Contest } from "@/types/contest";
 import type { ContestRow } from "@/types/database";
-import { fetchContestBySlug, normalizeContestRow } from "@/lib/supabase/contests";
+import { fetchContestBySlug, isPublicContest, normalizeContestRow } from "@/lib/supabase/contests";
 import { slugifyContestTitle } from "@/lib/slug";
 
 const BASE_SELECT = `
@@ -56,6 +56,25 @@ export interface ContestDetailPayload extends Contest {
 
 function normalizeHostLabel(value: string): string {
   return value.replace(/\s+/g, " ").trim() || "주최 미정";
+}
+
+function toPlainText(value?: string | null): string {
+  if (!value) return "";
+  return String(value)
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 function extractMetadataText(metadata: Record<string, unknown>): string {
@@ -138,18 +157,22 @@ function toDetailPayload(contest: Contest): ContestDetailPayload {
       ? contest.raw_payload
       : {};
 
+  const summary = toPlainText(contest.summary);
+  const description = toPlainText(contest.description);
   const normalizedField = inferFieldLabel(contest, metadata);
   const normalizedTargets = inferTargets(contest, metadata);
   const normalizedHost = normalizeHostLabel(contest.organizer || "");
 
   return {
     ...contest,
-    official_source_url: contest.official_source_url || contest.official_url || "",
-    source_url: contest.source_url || contest.aggregator_source_url || null,
+    summary: summary || contest.title,
+    description: description || summary || contest.title,
+    official_source_url: contest.official_url || contest.official_source_url || "",
+    source_url: contest.source_url || contest.official_source_url || contest.aggregator_source_url || null,
     metadata_json: metadata,
     contest_type: contest.type,
     target_tags: contest.target ?? [],
-    eligibility_text: contest.description || contest.summary || "",
+    eligibility_text: description || summary || "",
     normalized_field: normalizedField,
     normalized_targets: normalizedTargets,
     normalized_host: normalizedHost,
@@ -202,7 +225,7 @@ function isWithinDays(dateText: string, maxDays: number): boolean {
   const target = new Date(date);
   target.setHours(0, 0, 0, 0);
   const diff = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-  return diff >= 0 && diff <= maxDays;
+  return diff > 0 && diff <= maxDays;
 }
 
 async function fetchOpenContests(limit = 2000): Promise<ContestDetailPayload[]> {
@@ -220,7 +243,10 @@ async function fetchOpenContests(limit = 2000): Promise<ContestDetailPayload[]> 
     throw new Error(`[fetchOpenContests] ${error.message}`);
   }
 
-  return ((data ?? []) as ContestRow[]).map(normalizeContestRow).map(toDetailPayload);
+  return ((data ?? []) as ContestRow[])
+    .map(normalizeContestRow)
+    .filter(isPublicContest)
+    .map(toDetailPayload);
 }
 
 export async function getContestDetailPayload(slug: string): Promise<{
@@ -263,6 +289,7 @@ export async function getRelatedContestsPayload(
     .select(BASE_SELECT)
     .eq("type", contestType)
     .in("status", OPEN_STATUSES)
+    .gte("verified_level", 1)
     .order("apply_end_at", { ascending: true, nullsFirst: false })
     .limit(safeLimit + 2);
 
@@ -275,6 +302,7 @@ export async function getRelatedContestsPayload(
 
   const items = ((data ?? []) as ContestRow[])
     .map(normalizeContestRow)
+    .filter(isPublicContest)
     .map(toDetailPayload)
     .filter((item) => item.id !== excludeId)
     .slice(0, safeLimit);

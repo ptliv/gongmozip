@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound, redirect } from "next/navigation";
 import { ExternalLink, Calendar, Building2, Globe, Database, MapPin, Users, Trophy } from "lucide-react";
 import {
@@ -16,7 +17,7 @@ interface Props {
   params: { slug: string };
 }
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 function safeDateLabel(value?: string | null): string {
   if (!value) return "미정";
@@ -233,6 +234,19 @@ export default async function ContestDetailPage({ params }: Props) {
             </span>
           ))}
         </div>
+
+        {contest.poster_image_url && (
+          <div className="relative aspect-[16/9] w-full overflow-hidden rounded-xl border border-gray-100 bg-gray-50">
+            <Image
+              src={contest.poster_image_url}
+              alt={`${contest.title} 포스터`}
+              fill
+              sizes="(min-width: 1024px) 960px, 92vw"
+              className="object-contain"
+              priority
+            />
+          </div>
+        )}
 
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-snug">{contest.title}</h1>
 

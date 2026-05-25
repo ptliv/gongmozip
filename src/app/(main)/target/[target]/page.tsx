@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { ContestGrid } from "@/components/ui/ContestGrid";
 import {
-  getFacetOptionsPayload,
   getTargetContestsPayload,
 } from "@/lib/supabase/public-contest-queries";
 import { canonicalUrl } from "@/lib/seo";
@@ -10,7 +9,7 @@ interface Props {
   params: { target: string };
 }
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 function getFallbackLabel(targetSlug: string): string {
   return decodeURIComponent(targetSlug) || "대상";
@@ -30,16 +29,6 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       canonical: canonicalUrl(`/target/${params.target}`),
     },
   };
-}
-
-export async function generateStaticParams() {
-  const facets = await getFacetOptionsPayload({ targetLimit: 20 }).catch(() => ({
-    ok: false,
-    fields: [],
-    targets: [],
-    hosts: [],
-  }));
-  return facets.targets.map((item) => ({ target: item.slug }));
 }
 
 export default async function TargetPage({ params }: Props) {

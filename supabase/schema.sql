@@ -64,7 +64,7 @@ create table if not exists contests (
 
 comment on table contests is '공모전·대외활동 공고 테이블';
 comment on column contests.benefit is 'JSONB: { prize?: string, types: BenefitType[] }';
-comment on column contests.verified_level is '0=미검증/검수대기 1=자동공개(80점↑) or URL확인 2=운영자검토완료 3=공식제휴';
+comment on column contests.verified_level is '0=미검증/검수대기 1=자동공개(75점↑+상세설명 충족) or URL확인 2=운영자검토완료 3=공식제휴';
 comment on column contests.review_score is '자동 품질 점수 0~100. 크롤러 upsert 시 계산. 수동 등록 공고는 null.';
 
 

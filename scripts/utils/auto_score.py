@@ -3,7 +3,7 @@ auto_score.py — 수집 공고 자동 품질 점수화 모듈
 
 점수 범위: 0 ~ 100
 판정 기준:
-  80점 이상  → verified_level = 1  (자동 공개)
+  75점 이상 + 상세 설명 180자 이상 → verified_level = 1  (자동 공개)
   50~79점    → verified_level = 0  (검수 대기)
   50점 미만  → verified_level = 0  (저품질 검수 대기)
 
@@ -31,12 +31,14 @@ auto_score.py — 수집 공고 자동 품질 점수화 모듈
 """
 
 import re
-from datetime import date
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
 
 # ── 판정 임계값 ────────────────────────────────────────────────
-SCORE_AUTO_PUBLISH   = 80   # 이상 → verified_level = 1 (자동 공개)
+SCORE_AUTO_PUBLISH   = 75   # 이상 + 상세 설명 기준 충족 → verified_level = 1
 SCORE_REVIEW_PENDING = 50   # 이상 → verified_level = 0 (검수 대기)
                              # 미만 → verified_level = 0 (저품질 검수 대기)
+MIN_AUTO_DESCRIPTION_CHARS = 180
 
 # ── 광고/비정상 키워드 ─────────────────────────────────────────
 SPAM_KEYWORDS = [
@@ -106,10 +108,15 @@ def score_contest(contest: dict) -> int:
     elif len(summary) > 0:
         score += 2
 
-    if len(description) >= 300:
-        score += 10
-    elif len(description) >= 100:
-        score += 6
+    description_len = len(_plain_text(description))
+    if description_len >= 500:
+        score += 18
+    elif description_len >= 300:
+        score += 14
+    elif description_len >= 150:
+        score += 8
+    elif description_len >= 80:
+        score += 5
     elif len(description) > 0:
         score += 2
 
@@ -134,7 +141,7 @@ def score_contest(contest: dict) -> int:
             break
 
     # 이미 마감된 공고
-    if _is_valid_date(apply_end) and apply_end < date.today().isoformat():
+    if not _is_future_deadline(apply_end):
         score -= 15
 
     # 비정상 제목 (특수문자 30% 초과)
@@ -146,15 +153,22 @@ def score_contest(contest: dict) -> int:
     return max(0, min(100, score))
 
 
-def decide_verified_level(score: int) -> int:
+def decide_verified_level(score: int, contest: dict | None = None) -> int:
     """
     점수를 기반으로 자동 verified_level을 결정합니다.
 
     Returns:
-        1 → 자동 공개 (score >= SCORE_AUTO_PUBLISH)
+        1 → 자동 공개 (score >= SCORE_AUTO_PUBLISH and detail quality ok)
         0 → 검수 대기 (그 외)
     """
     if score >= SCORE_AUTO_PUBLISH:
+        if contest is not None:
+            description_len = len(_plain_text(contest.get("description") or ""))
+            if description_len < MIN_AUTO_DESCRIPTION_CHARS:
+                return 0
+            apply_end = (contest.get("apply_end_at") or "").strip()
+            if not _is_future_deadline(apply_end):
+                return 0
         return 1
     return 0
 
@@ -181,3 +195,20 @@ def _is_valid_date(date_str: str) -> bool:
         return True
     except ValueError:
         return False
+
+
+def _today_key() -> str:
+    return datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
+
+
+def _is_future_deadline(date_str: str) -> bool:
+    return _is_valid_date(date_str) and date_str[:10] > _today_key()
+
+
+def _plain_text(value: str) -> str:
+    text = re.sub(r"<script[\s\S]*?</script>", " ", str(value), flags=re.I)
+    text = re.sub(r"<style[\s\S]*?</style>", " ", text, flags=re.I)
+    text = re.sub(r"<[^>]+>", " ", text)
+    text = re.sub(r"&nbsp;", " ", text, flags=re.I)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()

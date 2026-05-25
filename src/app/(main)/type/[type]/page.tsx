@@ -6,7 +6,7 @@ import { CONTEST_TYPES, ContestType } from "@/types/contest";
 import { fetchContests } from "@/lib/supabase/contests";
 import { ContestGrid } from "@/components/ui/ContestGrid";
 
-export const revalidate = 3600;
+export const dynamic = "force-dynamic";
 
 interface Props {
   params: { type: string };
@@ -17,10 +17,6 @@ function getType(raw: string): ContestType | null {
   return (CONTEST_TYPES as readonly string[]).includes(decoded)
     ? (decoded as ContestType)
     : null;
-}
-
-export async function generateStaticParams() {
-  return CONTEST_TYPES.map((type) => ({ type }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

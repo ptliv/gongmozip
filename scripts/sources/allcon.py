@@ -46,6 +46,7 @@ from bs4 import BeautifulSoup, MarkupResemblesLocatorWarning
 from utils import logger
 from utils.normalize import (
     clean_str,
+    normalize_date,
     generate_slug,
     default_apply_end_at,
     today_str,
@@ -516,6 +517,156 @@ def fetch_allcon_contests() -> list[dict]:
     _log_collect_summary(all_contests)
 
     return all_contests
+
+
+# ==================================================================
+# 상세 페이지 보강: fetch_allcon_detail
+# ==================================================================
+
+_DETAIL_HEADERS = {
+    **HEADERS,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Referer": BASE_URL + "/",
+}
+
+_DATE_RANGE_RE_ALLCON = re.compile(
+    r"(\d{2,4}[.\-]\d{1,2}[.\-]\d{1,2})\s*~\s*(\d{2,4}[.\-]\d{1,2}[.\-]\d{1,2})"
+)
+
+
+def _parse_allcon_detail_soup(soup: BeautifulSoup) -> Optional[dict]:
+    """
+    올콘 상세 페이지 soup에서 추가 필드를 추출합니다.
+
+    체크리스트 셀렉터:
+      제목:    h2.title, .view-head h2
+      메타:    table.view-table (th + td 쌍)
+      본문:    div.view-body, div.cont-view
+      이미지:  meta[property="og:image"]
+      공식URL: a.btn-homepage, a.btn.btn-primary
+    라벨: "접수기간", "주최", "주관", "시상내역", "응모대상", "분야", "홈페이지"
+    """
+    update: dict = {}
+
+    # ── og:image (포스터) ─────────────────────────────────────────
+    og_img = soup.select_one("meta[property='og:image']")
+    if og_img:
+        content = og_img.get("content")
+        if content and content.startswith("http"):
+            update["poster_image_url"] = content
+
+    # ── 제목 ──────────────────────────────────────────────────────
+    title_el = soup.select_one("h2.title, .view-head h2, .cont-title h2")
+    if title_el:
+        t = clean_str(title_el.get_text(strip=True))
+        if t:
+            update["title"] = t
+
+    # ── 메타 테이블 (th + td 쌍) ──────────────────────────────────
+    meta: dict[str, str] = {}
+    for table in soup.select("table.view-table, table.detail-table, table"):
+        for row in table.select("tr"):
+            ths = row.select("th")
+            tds = row.select("td")
+            for th, td in zip(ths, tds):
+                label = clean_str(th.get_text(strip=True))
+                value = clean_str(td.get_text(" ", strip=True))
+                if label and value:
+                    meta[label] = value
+        if meta:
+            break
+
+    # 접수기간 → apply_start_at / apply_end_at
+    for date_label in ("접수기간", "모집기간", "기간"):
+        if date_label in meta:
+            m = _DATE_RANGE_RE_ALLCON.search(meta[date_label])
+            if m:
+                s = normalize_date(m.group(1))
+                e = normalize_date(m.group(2))
+                if s:
+                    update["apply_start_at"] = s
+                if e:
+                    update["apply_end_at"] = e
+            break
+
+    # 주최 / 주관
+    parts = []
+    for label in ("주최", "주관"):
+        v = meta.get(label, "")
+        if v and v not in parts:
+            parts.append(v)
+    if parts:
+        update["organizer"] = ", ".join(parts)[:80]
+
+    # 응모대상
+    for label in ("응모대상", "참가대상"):
+        if label in meta:
+            targets = [t.strip() for t in re.split(r"[,/·]", meta[label]) if t.strip()]
+            if targets:
+                update["target"] = targets[:6]
+            break
+
+    # 시상내역
+    for label in ("시상내역", "시상/혜택", "혜택"):
+        if label in meta:
+            update["benefit"] = {"text": meta[label], "types": []}
+            break
+
+    # 분야
+    if "분야" in meta:
+        update["field"] = meta["분야"]
+
+    # 공식 홈페이지 URL (메타 테이블 라벨)
+    for label in ("홈페이지",):
+        if label in meta:
+            hp = meta[label].split()[0]  # 공백 전까지
+            if hp.startswith("http"):
+                update["official_url"] = hp
+            break
+
+    # 공식 홈페이지 버튼 탐색
+    if not update.get("official_url"):
+        for a in soup.select("a.btn-homepage, a.btn.btn-primary, a.link-homepage"):
+            href = a.get("href", "")
+            if href.startswith("http") and "all-con.co.kr" not in href:
+                update["official_url"] = href
+                break
+
+    # ── 상세 본문 (HTML 그대로) ───────────────────────────────────
+    body = soup.select_one("div.view-body, div.cont-view, div.view-content")
+    if body:
+        update["description"] = str(body)
+
+    return update if update else None
+
+
+def fetch_allcon_detail(contest: dict) -> Optional[dict]:
+    """
+    올콘 상세 페이지(정적 HTML)에서 추가 정보를 수집합니다.
+
+    체크리스트: 정적 HTML, JS 렌더링 불필요, 로그인 없이 접근 가능.
+
+    Returns:
+        갱신할 필드 dict, 또는 None(실패)
+    """
+    url = contest.get("official_source_url") or contest.get("source_url")
+    if not url or "/view/contest/" not in url:
+        return None
+
+    external_id = contest.get("external_id", "?")
+
+    try:
+        resp = requests.get(url, headers=_DETAIL_HEADERS, timeout=REQUEST_TIMEOUT)
+        resp.raise_for_status()
+        soup = BeautifulSoup(resp.content, "lxml")
+    except requests.RequestException as e:
+        logger.warning(f"[allcon][detail] 요청 실패 srl={external_id}: {e}")
+        return None
+
+    update = _parse_allcon_detail_soup(soup)
+    if update:
+        logger.debug(f"[allcon][detail] 성공 srl={external_id}: {list(update.keys())}")
+    return update
 
 
 def _log_collect_summary(contests: list[dict]) -> None:

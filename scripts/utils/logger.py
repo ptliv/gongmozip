@@ -26,3 +26,8 @@ def warning(message: str) -> None:
 def error(message: str) -> None:
     """에러 로그 — 예외 발생 등 처리 실패 상황"""
     print(f"[{_now()}] [ERROR] {message}")
+
+
+def debug(message: str) -> None:
+    """디버그 로그 — 상세 진단 정보"""
+    print(f"[{_now()}] [DEBUG] {message}")

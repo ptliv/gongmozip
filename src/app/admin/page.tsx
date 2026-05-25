@@ -15,6 +15,8 @@ import { isDeadlineSoon } from "@/lib/date";
 import { StatsCard } from "@/components/admin/StatsCard";
 import { formatDate, formatDateRange } from "@/lib/date";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = { title: "관리자 대시보드" };
 
 export default async function AdminDashboard() {

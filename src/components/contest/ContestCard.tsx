@@ -1,11 +1,12 @@
 import Link from "next/link";
+import Image from "next/image";
 import { Contest } from "@/types/contest";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import { DeadlineBadge } from "@/components/ui/DeadlineBadge";
 import { BookmarkToggleButton } from "@/components/bookmark/BookmarkToggleButton";
 import { formatDate } from "@/lib/date";
 import { getContestHref } from "@/lib/slug";
-import { Building2, Users, Gift } from "lucide-react";
+import { Building2, Users, Gift, Image as ImageIcon } from "lucide-react";
 
 interface ContestCardProps {
   contest: Contest;
@@ -14,6 +15,7 @@ interface ContestCardProps {
 
 export function ContestCard({ contest, variant = "default" }: ContestCardProps) {
   const href = getContestHref(contest);
+  const posterUrl = contest.poster_image_url;
   const bookmarkItem = {
     slug: contest.slug,
     title: contest.title,
@@ -34,8 +36,18 @@ export function ContestCard({ contest, variant = "default" }: ContestCardProps) 
     return (
       <Link href={href} className="group block">
         <div className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 bg-white hover:shadow-card-hover hover:border-blue-100 hover:-translate-y-0.5 transition-all duration-200">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-100 to-violet-100 flex items-center justify-center flex-shrink-0 group-hover:from-blue-200 group-hover:to-violet-200 transition-colors">
-            <Building2 className="w-4 h-4 text-blue-600" />
+          <div className="relative w-11 h-11 rounded-xl bg-gray-100 border border-gray-100 overflow-hidden flex items-center justify-center flex-shrink-0">
+            {posterUrl ? (
+              <Image
+                src={posterUrl}
+                alt={`${contest.title} 포스터`}
+                fill
+                sizes="44px"
+                className="object-cover"
+              />
+            ) : (
+              <Building2 className="w-4 h-4 text-blue-600" />
+            )}
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
@@ -57,6 +69,22 @@ export function ContestCard({ contest, variant = "default" }: ContestCardProps) 
 
       <Link href={href} className="block h-full">
         <div className="h-full flex flex-col">
+          <div className="relative aspect-[16/9] rounded-xl bg-gray-100 border border-gray-100 overflow-hidden mb-4">
+            {posterUrl ? (
+              <Image
+                src={posterUrl}
+                alt={`${contest.title} 포스터`}
+                fill
+                sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 92vw"
+                className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50">
+                <ImageIcon className="w-8 h-8 text-gray-300" />
+              </div>
+            )}
+          </div>
+
           {/* 유형 + 마감 배지 */}
           <div className="flex items-start justify-between gap-2 mb-3 pr-10">
             <div className="flex items-center gap-1.5">

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { CheckCircle2, AlertTriangle, ExternalLink } from "lucide-react";
 import { fetchContests } from "@/lib/supabase/contests";
+import { getSiteUrl } from "@/lib/seo";
 
 export const metadata: Metadata = {
   title: "AdSense Readiness Check",
@@ -15,8 +16,7 @@ interface CheckItem {
   note: string;
 }
 
-const SITE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://gongmozip.com";
+const SITE_URL = getSiteUrl();
 
 const STATIC_CHECKS: CheckItem[] = [
   // ── AdSense 기술 요건 ──────────────────────────────────────

@@ -1,7 +1,7 @@
 import { MetadataRoute } from "next";
+import { getSiteUrl } from "@/lib/seo";
 
-const BASE_URL =
-  process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://gongmozip.com";
+const BASE_URL = getSiteUrl();
 
 export default function robots(): MetadataRoute.Robots {
   return {

@@ -9,7 +9,7 @@ interface Props {
   params: { category: string };
 }
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 function getKnownCategoryName(categorySlug: string): string | null {
   const decoded = decodeURIComponent(categorySlug);
@@ -20,13 +20,6 @@ function getKnownCategoryName(categorySlug: string): string | null {
   if (fromCategory) return fromCategory;
   const fromType = CONTEST_TYPES.find((item) => slugifyContestTitle(item) === normalized);
   return fromType ?? null;
-}
-
-export async function generateStaticParams() {
-  const values = Array.from(new Set([...CONTEST_CATEGORIES, ...CONTEST_TYPES]));
-  return values.map((value) => ({
-    category: slugifyContestTitle(value),
-  }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
