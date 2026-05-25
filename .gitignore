@@ -22,3 +22,6 @@ coverage/
 dist/
 tsconfig.tsbuildinfo
 .vercel
+
+# local OCI retry launcher config
+scripts/oci-a1-config.json
