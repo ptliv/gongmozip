@@ -126,6 +126,20 @@ function Ensure-Session {
   $profileData = Parse-IniProfile -Path $OciConfigPath -ProfileName $Profile
   if ($profileData.ContainsKey("tenancy") -and $profileData.ContainsKey("region")) {
     Write-Step "OCI profile exists: $Profile"
+    if ($profileData.ContainsKey("security_token_file")) {
+      Write-Step "Refreshing OCI browser session token"
+      $previousErrorActionPreference = $ErrorActionPreference
+      $ErrorActionPreference = "Continue"
+      try {
+        $refreshOutput = & oci session refresh --profile $Profile --region $Region 2>&1
+        $refreshExitCode = $LASTEXITCODE
+      } finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+      }
+      if ($refreshExitCode -ne 0) {
+        throw ($refreshOutput | ForEach-Object { $_.ToString() } | Out-String)
+      }
+    }
     return
   }
 

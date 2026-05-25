@@ -23,6 +23,8 @@ function Send-DiscordNotification {
     [hashtable]$Fields = @{}
   )
 
+  if ($DryRun) { return }
+
   $webhookUrl = ""
   if ($Config -and $Config.PSObject.Properties.Name -contains "discordWebhookUrl") {
     $webhookUrl = [string]$Config.discordWebhookUrl
@@ -67,11 +69,82 @@ function Send-DiscordNotification {
   }
 }
 
+function Test-UsesSecurityToken {
+  param([object]$Config)
+  return (
+    $Config -and
+    $Config.PSObject.Properties.Name -contains "auth" -and
+    [string]$Config.auth -eq "security_token"
+  )
+}
+
+function Refresh-OciSession {
+  param([object]$Config)
+
+  if (-not (Test-UsesSecurityToken -Config $Config)) {
+    return $true
+  }
+
+  $refreshArgs = @("session", "refresh")
+  if (-not [string]::IsNullOrWhiteSpace($Config.profile)) {
+    $refreshArgs += @("--profile", [string]$Config.profile)
+  }
+  if (-not [string]::IsNullOrWhiteSpace($Config.region)) {
+    $refreshArgs += @("--region", [string]$Config.region)
+  }
+
+  $previousErrorActionPreference = $ErrorActionPreference
+  $ErrorActionPreference = "Continue"
+  try {
+    $output = & oci @refreshArgs 2>&1
+    $exitCode = $LASTEXITCODE
+  } finally {
+    $ErrorActionPreference = $previousErrorActionPreference
+  }
+
+  if ($exitCode -eq 0) {
+    Write-Step "OCI session token refreshed"
+    return $true
+  }
+
+  $message = ($output | ForEach-Object { $_.ToString() } | Out-String).Trim()
+  Write-Step "OCI session token refresh failed"
+  Write-Host $message
+  Send-DiscordNotification -Config $Config `
+    -Title "OCI A1 retry stopped - login required" `
+    -Description "The OCI browser session token could not be refreshed. Please run OCI login again." `
+    -Color 15158332 `
+    -Fields @{
+      Success = "false"
+      Result = "session_refresh_failed"
+      Region = [string]$Config.region
+      Error = $message
+    }
+  return $false
+}
+
 function Require-Command {
   param([string]$Name)
-  if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) {
-    throw "'$Name' command not found. Install OCI CLI first, then run 'oci setup config'."
+  $command = Get-Command $Name -ErrorAction SilentlyContinue
+  if ($command) { return }
+
+  if ($Name -eq "oci") {
+    $candidates = @(
+      (Join-Path $env:APPDATA "Python\Python311\Scripts\oci.exe"),
+      (Join-Path $env:LOCALAPPDATA "Programs\Python\Python311\Scripts\oci.exe")
+    )
+    foreach ($candidate in $candidates) {
+      if (Test-Path -LiteralPath $candidate) {
+        $scriptDir = Split-Path -Parent $candidate
+        if (-not (($env:PATH -split ";") -contains $scriptDir)) {
+          $env:PATH = "$scriptDir;$env:PATH"
+        }
+        return
+      }
+    }
   }
+
+  throw "'$Name' command not found. Install OCI CLI first, then run 'oci setup config'."
 }
 
 function Read-JsonFile {
@@ -197,11 +270,10 @@ function Is-CapacityError {
   return $false
 }
 
+$config = Read-JsonFile $ConfigPath
 if (-not $DryRun) {
   Require-Command "oci"
 }
-
-$config = Read-JsonFile $ConfigPath
 $adList = @($config.availabilityDomains | ForEach-Object { [string]$_ } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 if ($adList.Count -eq 0) {
   throw "availabilityDomains is empty. Add AD names such as 'xxxx:AP-SEOUL-1-AD-1'."
@@ -229,6 +301,9 @@ Write-Step "Config: $ConfigPath"
 Write-Step "Shape: VM.Standard.A1.Flex / OCPU=$ocpus / Memory=${memory}GB"
 Write-Step "ADs: $($adList -join ', ')"
 Write-Step "Delay: ${DelaySeconds}s / MaxAttempts: $(if ($MaxAttempts -gt 0) { $MaxAttempts } else { 'unlimited' })"
+if (-not $DryRun -and -not (Refresh-OciSession -Config $config)) {
+  exit 1
+}
 Send-DiscordNotification -Config $config `
   -Title "OCI A1 retry started" `
   -Description "Started retrying the A1.Flex maximum free-tier shape." `
@@ -264,6 +339,10 @@ while ($true) {
           Shape = "4 OCPU / 24GB / 150GB"
         }
       throw "Reached MaxAttempts=$MaxAttempts without creating an instance."
+    }
+
+    if (-not $DryRun -and -not (Refresh-OciSession -Config $config)) {
+      exit 1
     }
 
     Write-Step "Attempt #$attempt on AD: $ad"
