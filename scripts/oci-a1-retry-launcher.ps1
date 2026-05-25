@@ -234,6 +234,8 @@ Send-DiscordNotification -Config $config `
   -Description "Started retrying the A1.Flex maximum free-tier shape." `
   -Color 3447003 `
   -Fields @{
+    Success = "pending"
+    Result = "started"
     Region = [string]$config.region
     Shape = "VM.Standard.A1.Flex"
     OCPU = [string]$ocpus
@@ -255,6 +257,8 @@ while ($true) {
         -Description "The retry launcher reached the maximum attempt count and stopped." `
         -Color 15158332 `
         -Fields @{
+          Success = "false"
+          Result = "stopped"
           Attempts = [string]($attempt - 1)
           Region = [string]$config.region
           Shape = "4 OCPU / 24GB / 150GB"
@@ -279,6 +283,8 @@ while ($true) {
             -Description "The instance launch request succeeded." `
             -Color 3066993 `
             -Fields @{
+              Success = "true"
+              Result = "created"
               Instance = [string]$json.data.id
               Lifecycle = [string]$json.data."lifecycle-state"
               AD = [string]$json.data."availability-domain"
@@ -293,6 +299,8 @@ while ($true) {
             -Description "The launch request succeeded, but response JSON parsing failed." `
             -Color 3066993 `
             -Fields @{
+              Success = "true"
+              Result = "created_response_parse_failed"
               Region = [string]$config.region
               Attempts = [string]$attempt
               Output = [string]$result.Output
@@ -312,6 +320,8 @@ while ($true) {
         -Description "The launch request failed with a retryable capacity/API error. Retrying after ${DelaySeconds}s." `
         -Color 15844367 `
         -Fields @{
+          Success = "false"
+          Result = "capacity_unavailable_retrying"
           Attempt = [string]$attempt
           Region = [string]$config.region
           AD = [string]$ad
@@ -326,6 +336,8 @@ while ($true) {
         -Description "The launcher stopped because the error was not recognized as a capacity issue." `
         -Color 15158332 `
         -Fields @{
+          Success = "false"
+          Result = "stopped_non_capacity_error"
           Attempt = [string]$attempt
           Region = [string]$config.region
           AD = [string]$ad
