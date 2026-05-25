@@ -22,9 +22,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     items: [],
   }));
   const label = payload.target || getFallbackLabel(params.target);
+  const hasItems = payload.ok && payload.items.length > 0;
   return {
     title: `${label} 대상 공고`,
     description: `${label} 대상 중심 공모전/대외활동 공고 목록입니다.`,
+    robots: hasItems ? undefined : { index: false, follow: true },
     alternates: {
       canonical: canonicalUrl(`/target/${params.target}`),
     },

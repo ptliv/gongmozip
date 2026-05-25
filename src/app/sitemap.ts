@@ -1,5 +1,4 @@
 import { MetadataRoute } from "next";
-import { CONTEST_TYPES, CONTEST_FIELDS, CONTEST_CATEGORIES } from "@/types/contest";
 import { fetchContests } from "@/lib/supabase/contests";
 import { slugifyContestTitle } from "@/lib/slug";
 import { getSiteUrl } from "@/lib/seo";
@@ -15,6 +14,7 @@ function fieldToSlug(field: string): string {
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
+  const contests = await fetchContests({ verified_only: true }).catch(() => []);
 
   // ── 정적 페이지 ────────────────────────────────────────────
   const staticPages: MetadataRoute.Sitemap = [
@@ -32,7 +32,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   ];
 
   // ── 유형별 페이지 /type/[type] ─────────────────────────────
-  const typePages: MetadataRoute.Sitemap = CONTEST_TYPES.map((type) => ({
+  const typeValues = Array.from(new Set(contests.map((contest) => contest.type).filter(Boolean)));
+  const typePages: MetadataRoute.Sitemap = typeValues.map((type) => ({
     url: `${BASE_URL}/type/${encodeURIComponent(type)}`,
     lastModified: now,
     changeFrequency: "daily",
@@ -40,14 +41,20 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // ── 분야별 페이지 /field/[field] ───────────────────────────
-  const fieldPages: MetadataRoute.Sitemap = CONTEST_FIELDS.map((field) => ({
+  const fieldValues = Array.from(new Set(contests.map((contest) => contest.field).filter(Boolean)));
+  const fieldPages: MetadataRoute.Sitemap = fieldValues.map((field) => ({
     url: `${BASE_URL}/field/${fieldToSlug(field)}`,
     lastModified: now,
     changeFrequency: "daily",
     priority: 0.7,
   }));
 
-  const categoryValues = Array.from(new Set([...CONTEST_CATEGORIES, ...CONTEST_TYPES]));
+  const categoryValues = Array.from(
+    new Set([
+      ...contests.map((contest) => contest.category).filter(Boolean),
+      ...contests.map((contest) => contest.type).filter(Boolean),
+    ])
+  );
   const categoryPages: MetadataRoute.Sitemap = categoryValues.map((category) => ({
     url: `${BASE_URL}/categories/${slugifyContestTitle(category)}`,
     lastModified: now,
@@ -56,7 +63,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }));
 
   // ── 공고 상세 페이지 /contests/[slug] ─────────────────────
-  const contests = await fetchContests({ verified_only: true }).catch(() => []);
   const contestPages: MetadataRoute.Sitemap = contests.map((c) => ({
     url: `${BASE_URL}/contests/${encodeURIComponent(c.slug)}`,
     lastModified: new Date(c.updated_at),

@@ -3,6 +3,7 @@ import type { Contest } from "@/types/contest";
 import type { ContestRow } from "@/types/database";
 import { fetchContestBySlug, isPublicContest, normalizeContestRow } from "@/lib/supabase/contests";
 import { slugifyContestTitle } from "@/lib/slug";
+import { buildContestSummary, cleanContestText } from "@/lib/contest-text";
 
 const BASE_SELECT = `
   id, slug, title, organizer, summary, description, poster_image_url,
@@ -59,22 +60,7 @@ function normalizeHostLabel(value: string): string {
 }
 
 function toPlainText(value?: string | null): string {
-  if (!value) return "";
-  return String(value)
-    .replace(/<script[\s\S]*?<\/script>/gi, " ")
-    .replace(/<style[\s\S]*?<\/style>/gi, " ")
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<\/(p|div|li|tr|h[1-6])>/gi, "\n")
-    .replace(/<[^>]+>/g, " ")
-    .replace(/&nbsp;/gi, " ")
-    .replace(/&amp;/gi, "&")
-    .replace(/&lt;/gi, "<")
-    .replace(/&gt;/gi, ">")
-    .replace(/&quot;/gi, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/[ \t]+/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
+  return cleanContestText(value);
 }
 
 function extractMetadataText(metadata: Record<string, unknown>): string {
@@ -157,7 +143,7 @@ function toDetailPayload(contest: Contest): ContestDetailPayload {
       ? contest.raw_payload
       : {};
 
-  const summary = toPlainText(contest.summary);
+  const summary = buildContestSummary(contest);
   const description = toPlainText(contest.description);
   const normalizedField = inferFieldLabel(contest, metadata);
   const normalizedTargets = inferTargets(contest, metadata);

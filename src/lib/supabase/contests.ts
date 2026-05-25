@@ -8,6 +8,7 @@ import {
   normalizeIncomingSlug,
   parseContestSlugSuffix,
 } from "@/lib/slug";
+import { buildContestSummary, cleanContestText, hasContestTextNoise } from "@/lib/contest-text";
 
 const CONTEST_SELECT = `
   id, slug, title, organizer, summary, description, poster_image_url,
@@ -68,6 +69,27 @@ export function isPublicContest(contest: Contest): boolean {
 }
 
 export function normalizeContestRow(row: Partial<ContestRow>): Contest {
+  const benefit = (row.benefit as Contest["benefit"]) ?? { types: [] };
+  const target = (row.target as Contest["target"]) ?? [];
+  const base = {
+    title: String(row.title ?? ""),
+    organizer: String(row.organizer ?? "미상"),
+    summary: String(row.summary ?? ""),
+    description: String(row.description ?? ""),
+    type: row.type as Contest["type"],
+    category: row.category as Contest["category"],
+    field: row.field as Contest["field"],
+    target,
+    apply_end_at: String(row.apply_end_at ?? ""),
+    benefit,
+  };
+  const summary = buildContestSummary(base);
+  const cleanedDescription = cleanContestText(base.description || base.summary);
+  const description =
+    cleanedDescription && !hasContestTextNoise(cleanedDescription)
+      ? cleanedDescription
+      : summary;
+
   return {
     id: String(row.id ?? ""),
     slug: getContestSlug({
@@ -76,22 +98,22 @@ export function normalizeContestRow(row: Partial<ContestRow>): Contest {
       source_site: (row.source_site as string | null) ?? null,
       external_id: (row.external_id as string | null) ?? null,
     }),
-    title: String(row.title ?? ""),
-    organizer: String(row.organizer ?? "미상"),
-    summary: String(row.summary ?? row.title ?? ""),
-    description: String(row.description ?? row.summary ?? row.title ?? ""),
+    title: base.title,
+    organizer: base.organizer,
+    summary,
+    description,
     poster_image_url: (row.poster_image_url as string | null) ?? null,
     type: row.type as Contest["type"],
     category: row.category as Contest["category"],
     field: row.field as Contest["field"],
-    target: (row.target as Contest["target"]) ?? [],
+    target,
     region: row.region as Contest["region"],
     online_offline: row.online_offline as Contest["online_offline"],
     team_allowed: Boolean(row.team_allowed),
     apply_start_at: String(row.apply_start_at ?? ""),
     apply_end_at: String(row.apply_end_at ?? ""),
     status: row.status as Contest["status"],
-    benefit: (row.benefit as Contest["benefit"]) ?? { types: [] },
+    benefit,
     official_source_url: String(row.official_source_url ?? ""),
     aggregator_source_url: (row.aggregator_source_url as string | null) ?? null,
     source_site: (row.source_site as string | null) ?? null,
@@ -157,7 +179,18 @@ export async function fetchContests(
   const { data, error } = await query;
   if (error) throw new Error(`[fetchContests] ${error.message}`);
   const contests = ((data ?? []) as ContestRow[]).map((row) => normalizeContestRow(row));
-  return filter?.verified_only === true ? contests.filter(isPublicContest) : contests;
+  if (filter?.verified_only !== true) return contests;
+
+  return contests.filter(isPublicContest).map((contest) => ({
+    ...contest,
+    description: hasContestTextNoise(contest.description) ? contest.summary : contest.description,
+    raw_payload: null,
+    source_site: null,
+    source_url: null,
+    official_source_url: "",
+    aggregator_source_url: null,
+    official_url: null,
+  }));
 }
 
 export async function fetchContestBySlug(

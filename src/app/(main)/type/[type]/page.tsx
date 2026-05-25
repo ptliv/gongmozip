@@ -22,9 +22,11 @@ function getType(raw: string): ContestType | null {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const type = getType(params.type);
   if (!type) return {};
+  const contests = await fetchContests({ type, verified_only: true }).catch(() => []);
   return {
     title: `${type} 공고 목록`,
     description: `${type} 관련 공모전·대외활동 공고를 한눈에 확인하세요.`,
+    robots: contests.length > 0 ? undefined : { index: false, follow: true },
   };
 }
 

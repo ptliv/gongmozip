@@ -32,15 +32,51 @@ AGGREGATOR_HOSTS = (
 )
 
 NOISE_LINE_PATTERNS = (
+    "home",
+    "faq",
+    "q&a",
     "로그인",
     "회원가입",
+    "마이페이지",
+    "주메뉴",
+    "본문 바로가기",
+    "첨부파일",
+    "첨부 파일",
     "개인정보처리방침",
     "이용약관",
+    "사이트맵",
+    "고객센터",
+    "공지사항",
+    "자료실",
     "쿠키",
     "광고",
     "menu",
     "copyright",
     "javascript",
+)
+
+JUNK_WORDS = (
+    "마이페이지",
+    "FAQ",
+    "첨부파일",
+    "HOME",
+    "주메뉴",
+    "본문 바로가기",
+    "로그인",
+    "회원가입",
+    "사이트맵",
+    "개인정보처리방침",
+    "이용약관",
+    "이전글",
+    "다음글",
+    "다운로드",
+    "공지사항",
+    "자료실",
+)
+
+JUNK_TEXT_PATTERN = re.compile(
+    r"(공식/원문 안내|주메뉴 바로가기|본문 바로가기|하단링크|통합검색|정보입력 검색|HOME\s*>)",
+    re.IGNORECASE,
 )
 
 RELEVANT_KEYWORDS = (
@@ -91,13 +127,49 @@ def strip_html(value: str | None) -> str:
     return text.strip()
 
 
-def summarize_text(text: str, limit: int = 150) -> str:
+def _is_noise_line(line: str) -> bool:
+    normalized = re.sub(r"\s+", " ", line).strip()
+    lowered = normalized.lower()
+    if not normalized:
+        return True
+    if any(pattern.lower() in lowered for pattern in NOISE_LINE_PATTERNS):
+        return True
+    if JUNK_TEXT_PATTERN.search(normalized):
+        return True
+    junk_hits = sum(1 for word in JUNK_WORDS if word in normalized)
+    return junk_hits >= 2 or (junk_hits > 0 and len(normalized) < 120)
+
+
+def _fallback_summary(contest: dict) -> str:
+    organizer = clean_str(contest.get("organizer")) or "주최기관"
+    contest_type = clean_str(contest.get("type")) or "공고"
+    field = clean_str(contest.get("field")) or clean_str(contest.get("category")) or "관련"
+    targets = _format_targets(contest)
+    end = normalize_date(contest.get("apply_end_at") or "")
+    deadline = f" 마감일은 {end}입니다." if end else ""
+    return (
+        f"{organizer}에서 진행하는 {contest_type}입니다. "
+        f"{targets}가 {field} 분야 경험을 준비할 때 검토하기 좋은 공고입니다.{deadline}"
+    )
+
+
+def summarize_text(text: str, limit: int = 220) -> str:
     cleaned = re.sub(r"\s+", " ", strip_html(text)).strip()
     if not cleaned:
         return ""
-    sentence = re.split(r"(?<=[.!?。！？])\s+|[。\n]", cleaned, maxsplit=1)[0].strip()
-    if len(sentence) >= 35:
-        cleaned = sentence
+    sentence_candidates = [
+        sentence.strip(" -·•\t")
+        for sentence in re.split(r"(?<=[.!?。！？])\s+|(?<=다\.)\s+|(?<=요\.)\s+|[。\n]", strip_html(text))
+    ]
+    selected = [
+        sentence
+        for sentence in sentence_candidates
+        if len(sentence) >= 18 and not _is_noise_line(sentence)
+    ][:3]
+    if selected:
+        cleaned = " ".join(selected)
+    elif _is_noise_line(cleaned):
+        return ""
     if len(cleaned) <= limit:
         return cleaned
     return cleaned[: limit - 1].rstrip() + "…"
@@ -110,8 +182,7 @@ def _clean_lines(text: str, limit: int = 12) -> list[str]:
         line = re.sub(r"\s+", " ", raw).strip(" -·•\t")
         if len(line) < 8:
             continue
-        lowered = line.lower()
-        if any(pattern in lowered for pattern in NOISE_LINE_PATTERNS):
+        if _is_noise_line(line):
             continue
         if line in seen:
             continue
@@ -365,11 +436,14 @@ def enrich_contest_content(contest: dict) -> dict:
         contest["description"] = description
 
     summary_source = official_text or source_text or description
-    summary = summarize_text(summary_source, limit=150)
+    summary = summarize_text(summary_source, limit=220)
+    if not summary or _is_noise_line(summary):
+        summary = _fallback_summary(contest)
     if summary and (
         not contest.get("summary")
         or str(contest.get("summary")).strip() == str(contest.get("title", "")).strip()
         or len(strip_html(contest.get("summary"))) < 50
+        or _is_noise_line(strip_html(contest.get("summary")))
     ):
         contest["summary"] = summary
 

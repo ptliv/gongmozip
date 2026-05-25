@@ -26,12 +26,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const known = getKnownCategoryName(params.category);
   const decoded = decodeURIComponent(params.category);
   const label = known || decoded || "카테고리";
+  const payload = await getCategoryContestsPayload(params.category).catch(() => ({
+    ok: false,
+    category: label,
+    items: [],
+  }));
+  const hasItems = payload.ok && payload.items.length > 0;
   const title = `${label} 공고`;
   const description = `${label} 기준으로 공모전/대외활동 공고를 모아봤습니다.`;
 
   return {
     title,
     description,
+    robots: hasItems ? undefined : { index: false, follow: true },
     alternates: {
       canonical: canonicalUrl(`/categories/${params.category}`),
     },

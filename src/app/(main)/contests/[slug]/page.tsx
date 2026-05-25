@@ -771,7 +771,7 @@ export default async function ContestDetailPage({ params }: Props) {
             </ul>
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-900 mb-2">지원 전략</h3>
+            <h3 className="text-sm font-bold text-gray-900 mb-2">지원 전 확인사항</h3>
             <ul className="space-y-2 text-sm text-gray-600 leading-relaxed">
               {strategyItems.map((item) => (
                 <li key={item} className="flex gap-2">
@@ -782,7 +782,7 @@ export default async function ContestDetailPage({ params }: Props) {
             </ul>
           </div>
           <div>
-            <h3 className="text-sm font-bold text-gray-900 mb-2">유의사항</h3>
+            <h3 className="text-sm font-bold text-gray-900 mb-2">제출 전 유의사항</h3>
             <ul className="space-y-2 text-sm text-gray-600 leading-relaxed">
               {cautionItems.map((item) => (
                 <li key={item} className="flex gap-2">
@@ -854,7 +854,7 @@ export default async function ContestDetailPage({ params }: Props) {
           <div className="rounded-xl bg-emerald-50/50 border border-emerald-100 p-4">
             <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2 mb-3">
               <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-              제출 전 체크
+              준비 서류 체크리스트
             </h3>
             <ul className="space-y-2 text-sm text-gray-700 leading-relaxed">
               {checklist.map((item) => (
@@ -936,14 +936,14 @@ export default async function ContestDetailPage({ params }: Props) {
 
       <section>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-gray-900">관련 공고</h2>
+          <h2 className="text-lg font-bold text-gray-900">비슷한 공고 추천</h2>
           <Link href="/contests" className="text-sm font-semibold text-blue-600 hover:text-blue-700">
             전체 보기
           </Link>
         </div>
         {relatedItems.length === 0 ? (
           <div className="rounded-2xl border border-gray-100 bg-white p-8 text-center text-sm text-gray-500">
-            관련 공고가 없습니다.
+            비슷한 공고가 없습니다.
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
