@@ -11,9 +11,11 @@ Approach:
 import os
 import re
 import time
+from html import unescape
 from typing import Optional
 
 import requests
+from bs4 import BeautifulSoup
 
 from utils import logger
 from utils.normalize import (
@@ -444,6 +446,18 @@ def _extract_campuspick_json(html: str) -> Optional[dict]:
 
     soup = BeautifulSoup(html, "lxml")
 
+    for script in soup.find_all("script", {"type": "application/json"}):
+        text = script.get_text(strip=True)
+        if not text:
+            continue
+        try:
+            obj = json.loads(text)
+        except json.JSONDecodeError:
+            continue
+        activity = obj.get("activity") if isinstance(obj, dict) else None
+        if isinstance(activity, dict) and activity.get("id"):
+            return activity
+
     # <script> 태그에서 activityview 포함된 것 탐색
     for script in soup.find_all("script"):
         text = script.get_text()
@@ -508,13 +522,13 @@ def fetch_campuspick_detail(contest: dict) -> Optional[dict]:
     update: dict = {}
 
     # 제목
-    title = clean_str(data.get("title"))
+    title = clean_str(unescape(str(data.get("title") or "")))
     if title:
         update["title"] = title
 
-    # 날짜 (startDate, endDate → "YYYY-MM-DD")
-    start_raw = data.get("startDate")
-    end_raw = data.get("endDate")
+    # 날짜 (startDate/endDate 또는 start_date/end_date → "YYYY-MM-DD")
+    start_raw = data.get("startDate") or data.get("start_date")
+    end_raw = data.get("endDate") or data.get("end_date")
     if start_raw:
         s = normalize_date(str(start_raw))
         if s:
@@ -532,7 +546,7 @@ def fetch_campuspick_detail(contest: dict) -> Optional[dict]:
             break
 
     # 포스터 이미지
-    image = clean_str(data.get("image"))
+    image = clean_str(data.get("image") or data.get("thumb") or data.get("thumbnail"))
     if image and image.startswith("http"):
         update["poster_image_url"] = image
 
@@ -542,8 +556,8 @@ def fetch_campuspick_detail(contest: dict) -> Optional[dict]:
         update["official_url"] = website
 
     # 시상 정보 (prizeTop, prizeTotal)
-    prize_top = clean_str(str(data.get("prizeTop", "") or ""))
-    prize_total = clean_str(str(data.get("prizeTotal", "") or ""))
+    prize_top = clean_str(str(data.get("prizeTop", data.get("prize_top", "")) or ""))
+    prize_total = clean_str(str(data.get("prizeTotal", data.get("prize_total", "")) or ""))
     benefit_parts = []
     if prize_top and prize_top not in ("0", "None"):
         benefit_parts.append(f"최고상: {prize_top}")
@@ -555,7 +569,7 @@ def fetch_campuspick_detail(contest: dict) -> Optional[dict]:
     # 상세 설명
     description = data.get("description")
     if description:
-        update["description"] = description
+        update["description"] = unescape(str(description))
 
     if update:
         logger.debug(f"[campuspick][detail] 성공 id={external_id}: {list(update.keys())}")

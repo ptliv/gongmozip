@@ -21,14 +21,48 @@ from utils.normalize import clean_str, normalize_date, normalize_url
 
 
 REQUEST_TIMEOUT = int(os.getenv("CRAWLER_ENRICH_TIMEOUT", "10"))
-FETCH_OFFICIAL_DETAIL = os.getenv("CRAWLER_FETCH_OFFICIAL_DETAIL", "false").lower() == "true"
-MAX_OFFICIAL_TEXT_CHARS = int(os.getenv("CRAWLER_OFFICIAL_TEXT_CHARS", "1200"))
-MAX_DESCRIPTION_CHARS = int(os.getenv("CRAWLER_DESCRIPTION_CHARS", "1800"))
+FETCH_OFFICIAL_DETAIL = os.getenv("CRAWLER_FETCH_OFFICIAL_DETAIL", "true").lower() == "true"
+MAX_OFFICIAL_TEXT_CHARS = int(os.getenv("CRAWLER_OFFICIAL_TEXT_CHARS", "900"))
+MAX_DESCRIPTION_CHARS = int(os.getenv("CRAWLER_DESCRIPTION_CHARS", "2600"))
 
 AGGREGATOR_HOSTS = (
     "wevity.com",
     "all-con.co.kr",
     "campuspick.com",
+)
+
+NOISE_LINE_PATTERNS = (
+    "로그인",
+    "회원가입",
+    "개인정보처리방침",
+    "이용약관",
+    "쿠키",
+    "광고",
+    "menu",
+    "copyright",
+    "javascript",
+)
+
+RELEVANT_KEYWORDS = (
+    "접수",
+    "모집",
+    "신청",
+    "지원",
+    "참가",
+    "응모",
+    "대상",
+    "자격",
+    "시상",
+    "상금",
+    "혜택",
+    "제출",
+    "서류",
+    "일정",
+    "발표",
+    "문의",
+    "활동",
+    "주제",
+    "심사",
 )
 
 HEADERS = {
@@ -69,6 +103,42 @@ def summarize_text(text: str, limit: int = 150) -> str:
     return cleaned[: limit - 1].rstrip() + "…"
 
 
+def _clean_lines(text: str, limit: int = 12) -> list[str]:
+    lines: list[str] = []
+    seen: set[str] = set()
+    for raw in strip_html(text).splitlines():
+        line = re.sub(r"\s+", " ", raw).strip(" -·•\t")
+        if len(line) < 8:
+            continue
+        lowered = line.lower()
+        if any(pattern in lowered for pattern in NOISE_LINE_PATTERNS):
+            continue
+        if line in seen:
+            continue
+        seen.add(line)
+        lines.append(line[:180])
+        if len(lines) >= limit:
+            break
+    return lines
+
+
+def _select_relevant_lines(text: str, limit: int = 5) -> list[str]:
+    selected: list[str] = []
+    for line in _clean_lines(text, limit=40):
+        if any(keyword in line for keyword in RELEVANT_KEYWORDS):
+            selected.append(line)
+        if len(selected) >= limit:
+            break
+    return selected
+
+
+def _keyword_overview(text: str) -> str:
+    found = [keyword for keyword in RELEVANT_KEYWORDS if keyword in text]
+    if not found:
+        return ""
+    return ", ".join(dict.fromkeys(found[:8]))
+
+
 def today_key() -> str:
     return datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
 
@@ -103,7 +173,7 @@ def _fetch_page_metadata(url: str | None) -> dict:
         return {}
 
     soup = BeautifulSoup(response.text, "lxml")
-    for tag in soup(["script", "style", "noscript", "iframe", "svg"]):
+    for tag in soup(["script", "style", "noscript", "iframe", "svg", "nav", "footer", "header"]):
         tag.decompose()
 
     def meta(*selectors: str) -> str:
@@ -151,6 +221,7 @@ def _fetch_page_metadata(url: str | None) -> dict:
     return {
         "title": title,
         "description": content_text,
+        "relevant_lines": _select_relevant_lines(content_text),
         "image": image,
         "url": response.url,
     }
@@ -188,6 +259,37 @@ def _format_benefit(contest: dict) -> str:
     return ""
 
 
+def _preparation_tip(contest: dict) -> str:
+    field = clean_str(contest.get("field")) or ""
+    category = clean_str(contest.get("category")) or ""
+    contest_type = clean_str(contest.get("type")) or ""
+    haystack = f"{field} {category} {contest_type}"
+
+    if any(word in haystack for word in ("디자인", "영상", "예술", "문화")):
+        return "작품형 공고라면 결과물 파일 형식, 해상도, 러닝타임, 저작권·초상권 동의 범위를 먼저 확인해 두는 것이 좋습니다."
+    if any(word in haystack for word in ("IT", "테크", "해커톤", "개발", "과학", "공학")):
+        return "기술형 공고라면 문제 정의, 구현 방식, 데모 자료, 코드·서비스 공개 범위와 팀 역할을 미리 정리해 두면 좋습니다."
+    if any(word in haystack for word in ("마케팅", "광고", "아이디어", "기획", "경영", "경제", "창업")):
+        return "기획형 공고라면 시장 문제, 대상 사용자, 실행 가능성, 기대 효과를 한 페이지 안에서 명확히 연결하는 것이 중요합니다."
+    if any(word in haystack for word in ("서포터즈", "기자단", "대외활동", "봉사")):
+        return "활동형 공고라면 활동 기간, 필수 참석 일정, 콘텐츠 제출 횟수, 수료 기준과 활동비 지급 조건을 함께 확인하세요."
+    return "지원 전에는 모집 요강, 제출 방식, 결과 발표 일정, 문의처를 공식 사이트 기준으로 다시 확인하는 것이 안전합니다."
+
+
+def _checklist_lines(contest: dict) -> list[str]:
+    end = (contest.get("apply_end_at") or "").strip()
+    target = _format_targets(contest)
+    lines = [
+        f"마감일({end or '공식 안내 기준'}) 전에 제출 방식과 접수 완료 기준을 확인합니다.",
+        f"참가 대상({target})에 본인 또는 팀이 해당하는지 먼저 점검합니다.",
+        "제출 파일명, 분량, 양식, 개인정보 동의서 등 필수 서류 누락 여부를 확인합니다.",
+        "시상·혜택 조건과 결과 발표 일정을 확인해 이후 일정과 겹치지 않게 준비합니다.",
+    ]
+    if contest.get("team_allowed"):
+        lines.append("팀 지원이 가능하므로 역할 분담, 대표자 정보, 팀원 동의 여부를 미리 정리합니다.")
+    return lines
+
+
 def build_structured_description(contest: dict, source_text: str = "", official_text: str = "") -> str:
     title = clean_str(contest.get("title")) or "공고"
     organizer = clean_str(contest.get("organizer")) or "주최기관"
@@ -210,7 +312,22 @@ def build_structured_description(contest: dict, source_text: str = "", official_
     detail_text = strip_html(official_text) or strip_html(source_text)
     if detail_text:
         detail_text = re.sub(r"\s+", " ", detail_text).strip()
-        lines.append("상세 안내: " + detail_text[:MAX_OFFICIAL_TEXT_CHARS])
+        overview = _keyword_overview(detail_text)
+        if overview:
+            lines.append(f"공식 안내문에서 확인해야 할 주요 항목은 {overview}입니다.")
+        brief = summarize_text(detail_text, limit=MAX_OFFICIAL_TEXT_CHARS)
+        if brief:
+            lines.append("공식/원문 안내 요약: " + brief)
+
+    relevant_lines = _select_relevant_lines(official_text or source_text, limit=4)
+    if relevant_lines:
+        lines.append(
+            "확인 포인트: "
+            + " / ".join(relevant_lines[:4])
+        )
+
+    lines.append("지원 준비 가이드: " + _preparation_tip(contest))
+    lines.append("제출 전 체크리스트: " + " ".join(_checklist_lines(contest)))
 
     official_url = contest.get("official_url") or contest.get("official_source_url")
     if official_url:
@@ -268,6 +385,7 @@ def enrich_contest_content(contest: dict) -> dict:
                 "official_fetch_url": official_meta.get("url") or official_url,
                 "official_title": official_meta.get("title") or "",
                 "official_text_chars": len(official_text),
+                "official_relevant_lines": official_meta.get("relevant_lines") or [],
             }
         )
         raw_payload["enrichment"] = enrichment
