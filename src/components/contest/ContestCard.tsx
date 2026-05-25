@@ -6,7 +6,8 @@ import { DeadlineBadge } from "@/components/ui/DeadlineBadge";
 import { BookmarkToggleButton } from "@/components/bookmark/BookmarkToggleButton";
 import { formatDate } from "@/lib/date";
 import { getContestHref } from "@/lib/slug";
-import { Building2, Users, Gift, Image as ImageIcon } from "lucide-react";
+import { buildPublicContestAnalysis } from "@/lib/contest-analysis";
+import { Building2, Users, Gift, Image as ImageIcon, Sparkles } from "lucide-react";
 
 interface ContestCardProps {
   contest: Contest;
@@ -16,6 +17,7 @@ interface ContestCardProps {
 export function ContestCard({ contest, variant = "default" }: ContestCardProps) {
   const href = getContestHref(contest);
   const posterUrl = contest.poster_image_url;
+  const analysis = buildPublicContestAnalysis(contest);
   const bookmarkItem = {
     slug: contest.slug,
     title: contest.title,
@@ -53,6 +55,9 @@ export function ContestCard({ contest, variant = "default" }: ContestCardProps) 
               {contest.title}
             </p>
             <p className="text-xs text-gray-400 mt-0.5">{contest.organizer}</p>
+            <p className="mt-1 text-[11px] font-semibold text-blue-600">
+              추천도 {analysis.score}점 · 난이도 {analysis.difficultyLabel}
+            </p>
           </div>
           <DeadlineBadge applyEndAt={contest.apply_end_at} />
         </div>
@@ -101,6 +106,17 @@ export function ContestCard({ contest, variant = "default" }: ContestCardProps) 
           <p className="text-xs text-gray-500 leading-relaxed mb-4 line-clamp-2 flex-1">
             {contest.summary}
           </p>
+
+          {/* 공모전집 분석 */}
+          <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px]">
+            <span className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 font-bold text-blue-700">
+              <Sparkles className="h-3 w-3" />
+              추천도 {analysis.score}점
+            </span>
+            <span className="inline-flex items-center rounded-full border border-gray-100 bg-gray-50 px-2.5 py-1 font-semibold text-gray-600">
+              난이도 {analysis.difficultyLabel}
+            </span>
+          </div>
 
           {/* 메타 정보 */}
           <div className="space-y-1.5 mb-4">

@@ -144,7 +144,9 @@ export async function fetchContests(
     query = query.or(`title.ilike.%${filter.search}%,organizer.ilike.%${filter.search}%`);
   }
 
-  if (filter?.sort_by === "deadline") {
+  if (filter?.sort_by === "recommended") {
+    query = query.order("review_score", { ascending: false, nullsFirst: false });
+  } else if (filter?.sort_by === "deadline") {
     query = query.order("apply_end_at", { ascending: true });
   } else if (filter?.sort_by === "title") {
     query = query.order("title", { ascending: true });

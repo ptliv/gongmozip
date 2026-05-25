@@ -112,6 +112,6 @@ function parseEnum<T extends string>(
 }
 
 function parseSortBy(value: string): SortBy {
-  const valid: SortBy[] = ["latest", "deadline", "title"];
+  const valid: SortBy[] = ["latest", "recommended", "deadline", "title"];
   return valid.includes(value as SortBy) ? (value as SortBy) : "latest";
 }

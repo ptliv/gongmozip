@@ -61,6 +61,7 @@ export const ONLINE_OFFLINE_FILTER_OPTIONS: Array<
 
 export const SORT_OPTIONS: Array<FilterOption<SortBy>> = [
   { value: "latest", label: "최신순" },
+  { value: "recommended", label: "추천순" },
   { value: "deadline", label: "마감임박순" },
   { value: "title", label: "제목순" },
 ];

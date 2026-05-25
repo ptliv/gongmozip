@@ -14,6 +14,9 @@ import {
   Clock3,
   Lightbulb,
   CheckCircle2,
+  Sparkles,
+  Gauge,
+  Gift,
 } from "lucide-react";
 import {
   getContestDetailPayload,
@@ -25,6 +28,7 @@ import { BookmarkToggleButton } from "@/components/bookmark/BookmarkToggleButton
 import { canonicalUrl, buildDefaultDescription } from "@/lib/seo";
 import { getDaysUntilDeadline, formatDateKo } from "@/lib/date";
 import { normalizeIncomingSlug } from "@/lib/slug";
+import { buildPublicContestAnalysis, type AnalysisTone } from "@/lib/contest-analysis";
 
 interface Props {
   params: { slug: string };
@@ -110,14 +114,56 @@ const EMPHASIS_TERMS = [
   "서류",
 ] as const;
 
-function escapeRegExp(value: string): string {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
+const ANALYSIS_TONE_CLASSES: Record<
+  AnalysisTone,
+  { card: string; icon: string; value: string }
+> = {
+  blue: {
+    card: "border-blue-100 bg-blue-50/60",
+    icon: "bg-blue-100 text-blue-700",
+    value: "text-blue-800",
+  },
+  emerald: {
+    card: "border-emerald-100 bg-emerald-50/60",
+    icon: "bg-emerald-100 text-emerald-700",
+    value: "text-emerald-800",
+  },
+  amber: {
+    card: "border-amber-100 bg-amber-50/70",
+    icon: "bg-amber-100 text-amber-700",
+    value: "text-amber-800",
+  },
+  rose: {
+    card: "border-rose-100 bg-rose-50/60",
+    icon: "bg-rose-100 text-rose-700",
+    value: "text-rose-800",
+  },
+  violet: {
+    card: "border-violet-100 bg-violet-50/60",
+    icon: "bg-violet-100 text-violet-700",
+    value: "text-violet-800",
+  },
+  gray: {
+    card: "border-gray-100 bg-gray-50",
+    icon: "bg-gray-100 text-gray-600",
+    value: "text-gray-800",
+  },
+};
 
-const EMPHASIS_RE = new RegExp(
-  `(${[...EMPHASIS_TERMS].sort((a, b) => b.length - a.length).map(escapeRegExp).join("|")})`,
-  "gi"
-);
+function getAnalysisIcon(label: string) {
+  switch (label) {
+    case "추천도":
+      return Sparkles;
+    case "준비 난이도":
+      return Gauge;
+    case "마감 긴급도":
+      return Clock3;
+    case "혜택 명확도":
+      return Gift;
+    default:
+      return CheckCircle2;
+  }
+}
 
 function sanitizePublicText(text: string): string {
   return text
@@ -131,19 +177,54 @@ function sanitizePublicText(text: string): string {
     .replace(/출처/g, "자료");
 }
 
-function highlightInline(text: string): ReactNode[] {
-  return sanitizePublicText(text).split(EMPHASIS_RE).map((part, index) => {
-    if (!part) return null;
-    if (!EMPHASIS_TERMS.some((term) => term.toLowerCase() === part.toLowerCase())) {
-      return part;
+function sentenceImportanceScore(sentence: string): number {
+  const normalized = sentence.toLowerCase();
+  let score = 0;
+
+  for (const term of EMPHASIS_TERMS) {
+    if (normalized.includes(term.toLowerCase())) {
+      score += ["지원", "확인", "대상", "일정", "팀"].includes(term) ? 1 : 2;
     }
+  }
+
+  if (/(해야|하세요|필요|우선|먼저|전까지|피하려면|점검|완료)/.test(sentence)) {
+    score += 2;
+  }
+  if (/(마감|접수|제출|서류|자격|조건|혜택|시상|상금)/.test(sentence)) {
+    score += 2;
+  }
+
+  return score;
+}
+
+function shouldHighlightSentence(sentence: string): boolean {
+  const compact = sentence.replace(/\s+/g, " ").trim();
+  if (compact.length < 12 || compact.length > 220) return false;
+  return sentenceImportanceScore(compact) >= 3;
+}
+
+function splitSentences(text: string): string[] {
+  const sanitized = sanitizePublicText(text);
+  return sanitized.match(/[^.!?。！？]+[.!?。！？]?\s*/g) ?? [sanitized];
+}
+
+function highlightInline(text: string): ReactNode[] {
+  return splitSentences(text).map((sentence, index) => {
+    if (!sentence) return null;
+    if (!shouldHighlightSentence(sentence)) return sentence;
+
+    const leading = sentence.match(/^\s*/)?.[0] ?? "";
+    const trailing = sentence.match(/\s*$/)?.[0] ?? "";
+    const core = sentence.trim();
+
     return (
-      <mark
-        key={`${part}-${index}`}
-        className="rounded bg-yellow-100 px-0.5 font-bold text-gray-950 underline decoration-yellow-400 decoration-2 underline-offset-2"
-      >
-        {part}
-      </mark>
+      <span key={`${core.slice(0, 24)}-${index}`}>
+        {leading}
+        <mark className="box-decoration-clone rounded bg-yellow-100 px-1 font-bold text-gray-950 underline decoration-yellow-400 decoration-2 underline-offset-2">
+          {core}
+        </mark>
+        {trailing}
+      </span>
     );
   });
 }
@@ -363,6 +444,7 @@ export default async function ContestDetailPage({ params }: Props) {
   const preparationTips = buildPreparationTips(contest);
   const checklist = buildChecklist(contest);
   const scheduleGuide = buildScheduleGuide(contest);
+  const contestAnalysis = buildPublicContestAnalysis(contest);
   const bookmarkItem = {
     slug: contest.slug,
     title: contest.title,
@@ -467,6 +549,60 @@ export default async function ContestDetailPage({ params }: Props) {
         </div>
       </section>
 
+      <section className="space-y-4">
+        <div>
+          <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-blue-500" />
+            공모전집 분석
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            공고 내용, 마감일, 혜택, 준비 난이도를 종합해 지원 우선순위를 정리했습니다.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {contestAnalysis.metrics.map((metric) => {
+            const Icon = getAnalysisIcon(metric.label);
+            const tone = ANALYSIS_TONE_CLASSES[metric.tone];
+            return (
+              <article
+                key={metric.label}
+                className={`rounded-2xl border p-4 ${tone.card}`}
+              >
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold text-gray-500">{metric.label}</p>
+                    <p className={`mt-1 text-xl font-bold ${tone.value}`}>{metric.value}</p>
+                  </div>
+                  <span className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${tone.icon}`}>
+                    <Icon className="h-4 w-4" />
+                  </span>
+                </div>
+                <p className="mt-3 text-xs leading-relaxed text-gray-600">
+                  {highlightInline(metric.description)}
+                </p>
+              </article>
+            );
+          })}
+        </div>
+
+        <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+          <p className="text-sm leading-relaxed text-gray-700">
+            {highlightInline(contestAnalysis.summary)}
+          </p>
+          <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-2">
+            {contestAnalysis.actionItems.map((item) => (
+              <p
+                key={item}
+                className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 text-xs leading-relaxed text-gray-600"
+              >
+                {highlightInline(item)}
+              </p>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {(contest.benefit?.prize || (contest.benefit?.types?.length ?? 0) > 0) && (
         <section className="rounded-2xl border border-amber-100 bg-amber-50/40 p-6 space-y-3 shadow-card">
           <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -543,7 +679,7 @@ export default async function ContestDetailPage({ params }: Props) {
             </span>
           ) : (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gray-50 text-gray-600 border border-gray-100 text-xs font-semibold">
-              원문 기준 요약
+              상세 기준 요약
             </span>
           )}
         </div>

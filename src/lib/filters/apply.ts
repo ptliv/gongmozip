@@ -1,4 +1,5 @@
 import { Contest, ContestFilter, TargetGroup } from "@/types/contest";
+import { getPublicRecommendationScore } from "@/lib/contest-analysis";
 
 /**
  * 주어진 필터 상태를 공고 목록에 적용하여 필터링 + 정렬된 결과를 반환합니다.
@@ -53,6 +54,12 @@ export function applyFilters(contests: Contest[], filter: ContestFilter): Contes
   // 8. 정렬
   result.sort((a, b) => {
     switch (filter.sort_by) {
+      case "recommended":
+        return (
+          getPublicRecommendationScore(b) - getPublicRecommendationScore(a) ||
+          new Date(a.apply_end_at).getTime() - new Date(b.apply_end_at).getTime() ||
+          new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
       case "deadline":
         // 마감 순 오름차순 (임박한 것이 앞에)
         return new Date(a.apply_end_at).getTime() - new Date(b.apply_end_at).getTime();

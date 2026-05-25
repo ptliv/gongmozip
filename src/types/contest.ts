@@ -184,7 +184,7 @@ export interface Contest {
 // ----------------------------------------------------------
 
 export type FilterAll = "전체";
-export type SortBy = "latest" | "deadline" | "title";
+export type SortBy = "latest" | "recommended" | "deadline" | "title";
 
 export interface ContestFilter {
   search: string;
