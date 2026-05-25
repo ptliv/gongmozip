@@ -28,7 +28,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import urljoin, urlparse
+from urllib.parse import unquote, urljoin, urlparse
 import xml.etree.ElementTree as ET
 
 import requests
@@ -353,11 +353,11 @@ def main() -> int:
         else:
             detail_canonical = parse_canonical_href(detail_resp.text or "")
             parsed = urlparse(detail_canonical or "")
-            expected_path = detail_path
+            expected_path = urlparse(build_url(base_url, detail_path)).path
             checks["detail_canonical_ok"] = bool(
                 detail_canonical
                 and detail_canonical.startswith(base_url)
-                and parsed.path == expected_path
+                and unquote(parsed.path).rstrip("/") == unquote(expected_path).rstrip("/")
             )
 
     overall = all(checks.values())

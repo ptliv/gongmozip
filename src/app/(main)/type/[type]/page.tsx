@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { CONTEST_TYPES, ContestType } from "@/types/contest";
 import { fetchContests } from "@/lib/supabase/contests";
 import { ContestGrid } from "@/components/ui/ContestGrid";
+import { canonicalUrl } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,9 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: `${type} 공고 목록`,
     description: `${type} 관련 공모전·대외활동 공고를 한눈에 확인하세요.`,
     robots: contests.length > 0 ? undefined : { index: false, follow: true },
+    alternates: {
+      canonical: canonicalUrl(`/type/${encodeURIComponent(type)}`),
+    },
   };
 }
 

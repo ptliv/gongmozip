@@ -5,13 +5,22 @@ import { canonicalUrl } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "7일 내 마감 공고",
-  description: "오늘 기준 7일 이내 마감되는 진행중 공고 목록입니다.",
-  alternates: {
-    canonical: canonicalUrl("/deadline/7days"),
-  },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const payload = await getDeadline7DaysContestsPayload(1).catch(() => ({
+    ok: false,
+    items: [],
+  }));
+  const hasItems = payload.ok && payload.items.length > 0;
+
+  return {
+    title: "7일 내 마감 공고",
+    description: "오늘 기준 7일 이내 마감되는 진행중 공고 목록입니다.",
+    robots: hasItems ? undefined : { index: false, follow: true },
+    alternates: {
+      canonical: canonicalUrl("/deadline/7days"),
+    },
+  };
+}
 
 export default async function Deadline7DaysPage() {
   const payload = await getDeadline7DaysContestsPayload(300).catch((error: unknown) => {

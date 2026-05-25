@@ -6,13 +6,30 @@ import { canonicalUrl } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "공고 목록",
-  description: "공모전, 대외활동, 인턴십 등 다양한 청년 활동 공고를 검색하세요.",
-  alternates: {
-    canonical: canonicalUrl("/contests"),
-  },
-};
+interface Props {
+  searchParams?: Record<string, string | string[] | undefined>;
+}
+
+function hasSearchParams(searchParams?: Props["searchParams"]): boolean {
+  return Boolean(
+    searchParams &&
+      Object.values(searchParams).some((value) =>
+        Array.isArray(value) ? value.length > 0 : Boolean(value)
+      )
+  );
+}
+
+export function generateMetadata({ searchParams }: Props): Metadata {
+  const isFilteredPage = hasSearchParams(searchParams);
+  return {
+    title: "공고 목록",
+    description: "공모전, 대외활동, 인턴십 등 다양한 청년 활동 공고를 검색하세요.",
+    robots: isFilteredPage ? { index: false, follow: true } : undefined,
+    alternates: {
+      canonical: canonicalUrl("/contests"),
+    },
+  };
+}
 
 export default async function ContestsPage() {
   const contests = await fetchContests({ verified_only: true }).catch((e: unknown) => {
