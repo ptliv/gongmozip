@@ -98,6 +98,9 @@ function Invoke-OciLaunch {
   if (-not [string]::IsNullOrWhiteSpace($Config.region)) {
     $globalArgs += @("--region", [string]$Config.region)
   }
+  if (-not [string]::IsNullOrWhiteSpace($Config.auth)) {
+    $globalArgs += @("--auth", [string]$Config.auth)
+  }
 
   try {
     if ($DryRun) {
