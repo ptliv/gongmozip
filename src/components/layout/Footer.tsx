@@ -3,6 +3,7 @@ import { Trophy } from "lucide-react";
 
 const TRUST_LINKS = [
   { label: "소개", href: "/about" },
+  { label: "준비 가이드", href: "/guides" },
   { label: "개인정보처리방침", href: "/privacy" },
   { label: "이용약관", href: "/terms" },
   { label: "문의", href: "/contact" },

@@ -3,6 +3,7 @@ import { CategorySection } from "@/components/home/CategorySection";
 import { DeadlineSoonSection } from "@/components/home/DeadlineSoonSection";
 import { LatestContestsSection } from "@/components/home/LatestContestsSection";
 import { CTASection } from "@/components/home/CTASection";
+import { GuideSection } from "@/components/home/GuideSection";
 import { fetchContests } from "@/lib/supabase/contests";
 import { getDeadlineSoonContests, getLatestContests } from "@/lib/contest";
 import { getFacetOptionsPayload } from "@/lib/supabase/public-contest-queries";
@@ -40,6 +41,7 @@ export default async function HomePage() {
         />
         <DeadlineSoonSection contests={deadlineSoonContests} />
         <LatestContestsSection contests={latestContests} />
+        <GuideSection />
         <CTASection />
       </div>
     </>

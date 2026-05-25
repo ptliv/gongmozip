@@ -3,6 +3,7 @@ import { CONTEST_TYPES, CONTEST_FIELDS, CONTEST_CATEGORIES } from "@/types/conte
 import { fetchContests } from "@/lib/supabase/contests";
 import { slugifyContestTitle } from "@/lib/slug";
 import { getSiteUrl } from "@/lib/seo";
+import { GUIDE_ARTICLES } from "@/data/guides";
 
 export const revalidate = 3600;
 
@@ -22,6 +23,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${BASE_URL}/deadline`,          lastModified: now, changeFrequency: "hourly",  priority: 0.8 },
     { url: `${BASE_URL}/deadline/7days`,    lastModified: now, changeFrequency: "hourly",  priority: 0.75 },
     { url: `${BASE_URL}/latest`,            lastModified: now, changeFrequency: "hourly",  priority: 0.8 },
+    { url: `${BASE_URL}/guides`,            lastModified: now, changeFrequency: "weekly",  priority: 0.75 },
     // 신뢰/정책 페이지 (/adsense-readiness 는 noindex이므로 제외)
     { url: `${BASE_URL}/about`,             lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: `${BASE_URL}/privacy`,           lastModified: now, changeFrequency: "monthly", priority: 0.4 },
@@ -62,5 +64,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  return [...staticPages, ...typePages, ...fieldPages, ...categoryPages, ...contestPages];
+  const guidePages: MetadataRoute.Sitemap = GUIDE_ARTICLES.map((article) => ({
+    url: `${BASE_URL}/guides/${article.slug}`,
+    lastModified: now,
+    changeFrequency: "monthly",
+    priority: 0.65,
+  }));
+
+  return [...staticPages, ...typePages, ...fieldPages, ...categoryPages, ...guidePages, ...contestPages];
 }

@@ -9,6 +9,7 @@ import { useState } from "react";
 const NAV_LINKS = [
   { href: "/contests", label: "공고 목록" },
   { href: "/deadline", label: "마감임박" },
+  { href: "/guides", label: "준비 가이드" },
   { href: "/bookmarks", label: "북마크" },
   { href: "/contests?type=공모전", label: "공모전" },
   { href: "/contests?type=대외활동", label: "대외활동" },

@@ -35,6 +35,27 @@ export default async function ContestsPage() {
         </p>
       </div>
 
+      <section className="mb-7 border-y border-gray-100 py-5">
+        <h2 className="text-base font-bold text-gray-900 mb-3">공고 목록 활용 가이드</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 text-sm leading-relaxed text-gray-600">
+          <p>
+            공모전집의 공고 목록은 현재 모집 중이거나 모집 예정인 공모전, 대외활동, 인턴십을
+            마감일 기준으로 다시 정리해 보여줍니다. 이미 마감된 공고가 탐색 흐름을 방해하지 않도록
+            공개 목록에서는 마감일이 지난 항목을 제외하고, 카드마다 추천도와 준비 난이도를 함께 표시합니다.
+          </p>
+          <p>
+            처음 방문했다면 검색어보다 필터를 먼저 사용하는 편이 좋습니다. 유형, 분야, 대상, 진행 방식을
+            좁힌 뒤 추천순이나 마감임박순으로 정렬하면 지금 지원할 만한 공고를 빠르게 추릴 수 있습니다.
+            관심 공고는 북마크에 저장해 제출 전 체크리스트와 함께 다시 확인하세요.
+          </p>
+          <p>
+            각 상세 페이지에는 참가 대상, 혜택, 마감일, 준비 전략, 유의사항, 자주 묻는 질문을 추가해
+            단순 요약이 아니라 실제 지원 판단에 필요한 정보로 재구성했습니다. 접수 전에는 최신 모집 요강의
+            제출 조건과 접수 시간을 한 번 더 확인하는 것을 권장합니다.
+          </p>
+        </div>
+      </section>
+
       <Suspense fallback={<ContestsPageSkeleton />}>
         <ContestsPageClient initialContests={contests} />
       </Suspense>

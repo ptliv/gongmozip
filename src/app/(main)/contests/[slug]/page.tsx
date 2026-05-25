@@ -45,21 +45,6 @@ function safeDateLabel(value?: string | null): string {
   }
 }
 
-function statusLabel(status: string): string {
-  switch (status) {
-    case "upcoming":
-      return "모집 예정";
-    case "ongoing":
-      return "모집 중";
-    case "closed":
-      return "마감";
-    case "canceled":
-      return "취소됨";
-    default:
-      return status || "미정";
-  }
-}
-
 function dDayLabel(applyEndAt?: string | null): string {
   if (!applyEndAt) return "마감일 미정";
   const days = getDaysUntilDeadline(applyEndAt);
@@ -67,6 +52,15 @@ function dDayLabel(applyEndAt?: string | null): string {
   if (days < 0) return "마감됨";
   if (days === 0) return "오늘 마감";
   return `D-${days}`;
+}
+
+function displayStatusLabel(contest: ContestDetailPayload): string {
+  const days = contest.apply_end_at ? getDaysUntilDeadline(contest.apply_end_at) : Number.NaN;
+  if (Number.isFinite(days) && days <= 0) return "마감됨";
+  if (contest.status === "upcoming") return "모집 예정";
+  if (contest.status === "closed") return "마감됨";
+  if (contest.status === "canceled") return "취소됨";
+  return "모집 중";
 }
 
 const METADATA_KEY_WHITELIST = [
@@ -168,6 +162,7 @@ function getAnalysisIcon(label: string) {
 function sanitizePublicText(text: string): string {
   return text
     .replace(/공식\/원문 안내/g, "상세 안내")
+    .replace(/공식\s*사이트의\s*최신\s*공고/g, "최신 모집 요강")
     .replace(/공식\s*사이트/g, "최신 모집 요강")
     .replace(/공식\s*공고/g, "최신 모집 요강")
     .replace(/공식\s*안내문/g, "상세 안내문")
@@ -203,34 +198,60 @@ function shouldHighlightSentence(sentence: string): boolean {
   return sentenceImportanceScore(compact) >= 3;
 }
 
+function sentenceKey(sentence: string): string {
+  return sentence.replace(/\s+/g, " ").trim();
+}
+
 function splitSentences(text: string): string[] {
   const sanitized = sanitizePublicText(text);
   return sanitized.match(/[^.!?。！？]+[.!?。！？]?\s*/g) ?? [sanitized];
 }
 
 function highlightInline(text: string): ReactNode[] {
-  return splitSentences(text).map((sentence, index) => {
-    if (!sentence) return null;
-    if (!shouldHighlightSentence(sentence)) return sentence;
+  return [sanitizePublicText(text)];
+}
 
-    const leading = sentence.match(/^\s*/)?.[0] ?? "";
-    const trailing = sentence.match(/\s*$/)?.[0] ?? "";
-    const core = sentence.trim();
+function getCoreSentenceKeys(text: string, limit = 4): Set<string> {
+  const candidates = splitSentences(text)
+    .map((sentence, index) => ({
+      sentence,
+      key: sentenceKey(sentence),
+      score: sentenceImportanceScore(sentence),
+      index,
+    }))
+    .filter((item) => shouldHighlightSentence(item.sentence))
+    .sort((a, b) => b.score - a.score || a.index - b.index)
+    .slice(0, limit)
+    .sort((a, b) => a.index - b.index);
 
-    return (
-      <span key={`${core.slice(0, 24)}-${index}`}>
-        {leading}
-        <mark className="box-decoration-clone rounded bg-yellow-100 px-1 font-bold text-gray-950 underline decoration-yellow-400 decoration-2 underline-offset-2">
-          {core}
-        </mark>
-        {trailing}
-      </span>
-    );
-  });
+  return new Set(candidates.map((item) => item.key));
+}
+
+function renderHighlightedSentence(sentence: string, index: number, highlights: Set<string>): ReactNode {
+  if (!sentence) return null;
+  const key = sentenceKey(sentence);
+  if (!highlights.has(key)) return sentence;
+
+  const leading = sentence.match(/^\s*/)?.[0] ?? "";
+  const trailing = sentence.match(/\s*$/)?.[0] ?? "";
+  const core = sentence.trim();
+
+  return (
+    <span key={`${core.slice(0, 24)}-${index}`}>
+      {leading}
+      <mark className="box-decoration-clone rounded bg-yellow-100 px-1 font-bold text-gray-950 underline decoration-yellow-400 decoration-2 underline-offset-2">
+        {core}
+      </mark>
+      {trailing}
+    </span>
+  );
 }
 
 function renderHighlightedParagraphs(text: string): ReactNode[] {
-  return text
+  const sanitized = sanitizePublicText(text);
+  const highlights = getCoreSentenceKeys(sanitized, 4);
+
+  return sanitized
     .split(/\n{2,}/)
     .map((paragraph) => paragraph.trim())
     .filter(Boolean)
@@ -239,7 +260,9 @@ function renderHighlightedParagraphs(text: string): ReactNode[] {
         {paragraph.split(/\n/).map((line, lineIndex) => (
           <span key={`${line.slice(0, 24)}-${lineIndex}`}>
             {lineIndex > 0 && <br />}
-            {highlightInline(line)}
+            {splitSentences(line).map((sentence, sentenceIndex) =>
+              renderHighlightedSentence(sentence, sentenceIndex, highlights)
+            )}
           </span>
         ))}
       </p>
@@ -367,6 +390,74 @@ function buildScheduleGuide(contest: ContestDetailPayload): Array<{ label: strin
   ];
 }
 
+function buildSuitableFor(contest: ContestDetailPayload): string[] {
+  const target = targetLabel(contest);
+  const items = [
+    `${target} 중 ${contest.normalized_field || contest.field} 분야 경험을 포트폴리오에 남기고 싶은 사람`,
+    "마감일과 제출 조건을 확인한 뒤 짧은 기간 안에 결과물을 정리할 수 있는 사람",
+  ];
+
+  if (contest.team_allowed) {
+    items.push("기획, 제작, 발표, 자료 정리 역할을 나눠 팀 단위로 준비하려는 사람");
+  } else {
+    items.push("개인 역량과 기존 작업물을 바탕으로 단독 지원을 준비하려는 사람");
+  }
+
+  return items;
+}
+
+function buildStrategyItems(contest: ContestDetailPayload): string[] {
+  const items = [
+    "첫날에는 모집 요강, 참가 대상, 제출 파일 형식만 따로 정리해 지원 가능 여부를 판단하세요.",
+    "중간 점검일을 정해 초안, 증빙 서류, 포트폴리오, 개인정보 동의서 누락 여부를 확인하세요.",
+    "최종 제출 전에는 파일명, 분량, 해상도, 링크 접근 권한처럼 작은 실수가 생기기 쉬운 항목을 다시 보세요.",
+  ];
+
+  if (/(기획|아이디어|마케팅|광고|창업|경영)/.test(`${contest.category} ${contest.field}`)) {
+    items.push("기획형 공고는 문제 정의, 대상 사용자, 실행 가능성, 기대 효과가 한 흐름으로 보이게 구성하세요.");
+  } else if (/(개발|IT|테크|데이터|과학|공학)/i.test(`${contest.category} ${contest.field} ${contest.title}`)) {
+    items.push("기술형 공고는 구현 범위, 데이터 사용 방식, 데모 가능 여부를 심사자가 빠르게 이해하도록 정리하세요.");
+  } else if (/(디자인|영상|문화|예술)/.test(`${contest.category} ${contest.field}`)) {
+    items.push("작품형 공고는 콘셉트, 제작 의도, 저작권 확인 내용을 작품 설명 안에 함께 넣는 편이 좋습니다.");
+  }
+
+  return items.slice(0, 4);
+}
+
+function buildCautionItems(contest: ContestDetailPayload): string[] {
+  return [
+    `마감일은 ${safeDateLabel(contest.apply_end_at)} 기준으로 표시되며, 접수 종료 시간이 따로 있을 수 있습니다.`,
+    "요약 정보와 최신 모집 요강이 다르면 최신 모집 요강의 제출 조건을 우선으로 보세요.",
+    "상금, 활동비, 수료증, 채용 연계 등 혜택은 지급 조건과 제외 조건을 함께 확인해야 합니다.",
+    contest.team_allowed
+      ? "팀 지원은 대표자 정보, 팀원 동의, 역할 분담 자료가 필요한지 먼저 확인하세요."
+      : "개인 지원은 본인 명의 제출, 연락처, 증빙 서류의 일치 여부를 확인하세요.",
+  ];
+}
+
+function buildFaq(contest: ContestDetailPayload): Array<{ q: string; a: string }> {
+  return [
+    {
+      q: "이 공고는 지금 지원할 수 있나요?",
+      a: `현재 표시 상태는 ${displayStatusLabel(contest)}이며, 마감일은 ${safeDateLabel(contest.apply_end_at)}입니다. 접수 시간이 별도로 정해진 경우가 있으니 제출 전 최신 모집 요강을 확인하세요.`,
+    },
+    {
+      q: "어떤 자료부터 준비하면 좋나요?",
+      a: "참가 자격, 제출 양식, 파일 형식, 개인정보 동의 여부를 먼저 확인한 뒤 초안과 증빙 자료를 준비하는 순서가 좋습니다.",
+    },
+    {
+      q: "팀으로 지원해도 되나요?",
+      a: contest.team_allowed
+        ? "팀 참가가 가능한 공고로 분류되어 있습니다. 대표자 정보, 팀원 수 제한, 역할 분담표 필요 여부를 확인하세요."
+        : "개인 참가 중심 공고로 분류되어 있습니다. 팀 제출 가능 여부가 필요한 경우 최신 모집 요강에서 별도 조건을 확인하세요.",
+    },
+    {
+      q: "비슷한 공고도 같이 봐야 하나요?",
+      a: "비슷한 분야의 공고를 함께 보면 제출 형식, 심사 기준, 혜택 수준을 비교해 지원 우선순위를 정하기 쉽습니다.",
+    },
+  ];
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const detail = await getContestDetailPayload(params.slug).catch(() => ({
     ok: false,
@@ -445,6 +536,10 @@ export default async function ContestDetailPage({ params }: Props) {
   const checklist = buildChecklist(contest);
   const scheduleGuide = buildScheduleGuide(contest);
   const contestAnalysis = buildPublicContestAnalysis(contest);
+  const suitableFor = buildSuitableFor(contest);
+  const strategyItems = buildStrategyItems(contest);
+  const cautionItems = buildCautionItems(contest);
+  const faqItems = buildFaq(contest);
   const bookmarkItem = {
     slug: contest.slug,
     title: contest.title,
@@ -475,7 +570,7 @@ export default async function ContestDetailPage({ params }: Props) {
             {contest.field}
           </span>
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-            {statusLabel(contest.status)}
+            {displayStatusLabel(contest)}
           </span>
           <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
             {dDayLabel(contest.apply_end_at)}
@@ -662,6 +757,45 @@ export default async function ContestDetailPage({ params }: Props) {
       </section>
 
       <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-card">
+        <h2 className="text-lg font-bold text-gray-900 mb-4">지원 판단 가이드</h2>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 mb-2">이 공고가 적합한 사람</h3>
+            <ul className="space-y-2 text-sm text-gray-600 leading-relaxed">
+              {suitableFor.map((item) => (
+                <li key={item} className="flex gap-2">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 flex-shrink-0 text-emerald-500" />
+                  <span>{highlightInline(item)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 mb-2">지원 전략</h3>
+            <ul className="space-y-2 text-sm text-gray-600 leading-relaxed">
+              {strategyItems.map((item) => (
+                <li key={item} className="flex gap-2">
+                  <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-blue-400" />
+                  <span>{highlightInline(item)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-gray-900 mb-2">유의사항</h3>
+            <ul className="space-y-2 text-sm text-gray-600 leading-relaxed">
+              {cautionItems.map((item) => (
+                <li key={item} className="flex gap-2">
+                  <span className="mt-2 h-1.5 w-1.5 flex-shrink-0 rounded-full bg-amber-400" />
+                  <span>{highlightInline(item)}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-card">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 mb-5">
           <div>
             <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
@@ -748,6 +882,20 @@ export default async function ContestDetailPage({ params }: Props) {
             </div>
           </div>
         )}
+      </section>
+
+      <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-card">
+        <h2 className="text-lg font-bold text-gray-900 mb-4">자주 묻는 질문</h2>
+        <div className="divide-y divide-gray-100">
+          {faqItems.map((item) => (
+            <details key={item.q} className="group py-3 first:pt-0 last:pb-0">
+              <summary className="cursor-pointer list-none text-sm font-bold text-gray-800 group-open:text-blue-700">
+                {item.q}
+              </summary>
+              <p className="mt-2 text-sm leading-relaxed text-gray-600">{highlightInline(item.a)}</p>
+            </details>
+          ))}
+        </div>
       </section>
 
       {metadataPairs.length > 0 && (
