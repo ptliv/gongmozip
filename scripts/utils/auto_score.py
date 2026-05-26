@@ -3,7 +3,7 @@ auto_score.py — 수집 공고 자동 품질 점수화 모듈
 
 점수 범위: 0 ~ 100
 판정 기준:
-  75점 이상 + 상세 설명 180자 이상 → verified_level = 1  (자동 공개)
+  75점 이상 + 상세 설명 180자 이상 + 썸네일 있음 → verified_level = 1  (자동 공개)
   50~79점    → verified_level = 0  (검수 대기)
   50점 미만  → verified_level = 0  (저품질 검수 대기)
 
@@ -39,6 +39,15 @@ SCORE_AUTO_PUBLISH   = 75   # 이상 + 상세 설명 기준 충족 → verified_
 SCORE_REVIEW_PENDING = 50   # 이상 → verified_level = 0 (검수 대기)
                              # 미만 → verified_level = 0 (저품질 검수 대기)
 MIN_AUTO_DESCRIPTION_CHARS = 180
+PLACEHOLDER_IMAGE_MARKERS = (
+    "noimg",
+    "noimgs",
+    "no-image",
+    "no_image",
+    "placeholder",
+    "default-image",
+    "main_img",
+)
 
 # ── 광고/비정상 키워드 ─────────────────────────────────────────
 SPAM_KEYWORDS = [
@@ -169,8 +178,20 @@ def decide_verified_level(score: int, contest: dict | None = None) -> int:
             apply_end = (contest.get("apply_end_at") or "").strip()
             if not _is_future_deadline(apply_end):
                 return 0
+            if not has_valid_thumbnail(contest):
+                return 0
         return 1
     return 0
+
+
+def has_valid_thumbnail(contest: dict | None) -> bool:
+    if not contest:
+        return False
+    image_url = (contest.get("poster_image_url") or "").strip()
+    if not image_url.startswith("http"):
+        return False
+    lower = image_url.lower()
+    return not any(marker in lower for marker in PLACEHOLDER_IMAGE_MARKERS)
 
 
 def get_score_label(score: int) -> str:

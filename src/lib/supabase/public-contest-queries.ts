@@ -15,6 +15,15 @@ const BASE_SELECT = `
 `;
 
 const OPEN_STATUSES = ["ongoing", "upcoming"] as const;
+const PLACEHOLDER_IMAGE_MARKERS = [
+  "noimg",
+  "noimgs",
+  "no-image",
+  "no_image",
+  "placeholder",
+  "default-image",
+  "main_img",
+];
 
 const FIELD_RULES: Array<{ label: string; keywords: string[] }> = [
   { label: "IT·테크", keywords: ["ai", "인공지능", "it", "개발", "코딩", "데이터", "앱", "웹", "프로그래밍", "소프트웨어", "테크"] },
@@ -61,6 +70,13 @@ function normalizeHostLabel(value: string): string {
 
 function toPlainText(value?: string | null): string {
   return cleanContestText(value);
+}
+
+function hasPublicThumbnail(value?: string | null): boolean {
+  const url = value?.trim() ?? "";
+  if (!url.startsWith("http")) return false;
+  const lower = url.toLowerCase();
+  return !PLACEHOLDER_IMAGE_MARKERS.some((marker) => lower.includes(marker));
 }
 
 function extractMetadataText(metadata: Record<string, unknown>): string {
@@ -222,6 +238,8 @@ async function fetchOpenContests(limit = 2000): Promise<ContestDetailPayload[]> 
     .select(BASE_SELECT)
     .in("status", OPEN_STATUSES)
     .gte("verified_level", 1)   // 자동공개(1) 또는 관리자 검수 완료(2,3)만 공개
+    .not("poster_image_url", "is", null)
+    .neq("poster_image_url", "")
     .order("created_at", { ascending: false })
     .limit(safeLimit);
 
@@ -232,6 +250,7 @@ async function fetchOpenContests(limit = 2000): Promise<ContestDetailPayload[]> 
   return ((data ?? []) as ContestRow[])
     .map(normalizeContestRow)
     .filter(isPublicContest)
+    .filter((contest) => hasPublicThumbnail(contest.poster_image_url))
     .map(toDetailPayload);
 }
 
@@ -276,6 +295,8 @@ export async function getRelatedContestsPayload(
     .eq("type", contestType)
     .in("status", OPEN_STATUSES)
     .gte("verified_level", 1)
+    .not("poster_image_url", "is", null)
+    .neq("poster_image_url", "")
     .order("apply_end_at", { ascending: true, nullsFirst: false })
     .limit(safeLimit + 2);
 
@@ -289,6 +310,7 @@ export async function getRelatedContestsPayload(
   const items = ((data ?? []) as ContestRow[])
     .map(normalizeContestRow)
     .filter(isPublicContest)
+    .filter((contest) => hasPublicThumbnail(contest.poster_image_url))
     .map(toDetailPayload)
     .filter((item) => item.id !== excludeId)
     .slice(0, safeLimit);

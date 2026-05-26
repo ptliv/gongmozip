@@ -14,11 +14,13 @@ from utils.dedupe_report import build_dedupe_report, _print_dedupe_summary
 from utils.supabase_client import (
     close_expired_contests,
     get_supabase_client,
+    purge_no_thumbnail_contests,
     purge_expired_contests,
     rescore_contests,
     upsert_contests_bulk,
 )
 from utils.content_enrichment import enrich_contest_content, is_expired, today_key
+from utils.auto_score import has_valid_thumbnail
 from sources.allcon import fetch_allcon_contests, fetch_allcon_detail
 from sources.campuspick import fetch_campuspick_contests, fetch_campuspick_detail
 from sources.wevity import fetch_wevity_contests, fetch_wevity_detail
@@ -72,6 +74,25 @@ def _discard_expired(source_name: str, contests: list[dict]) -> list[dict]:
 
     if discarded:
         logger.info(f"[{source_name}] 마감/취소 공고 폐기: {discarded}건")
+    return kept
+
+
+def _discard_without_thumbnail(source_name: str, contests: list[dict]) -> list[dict]:
+    """
+    썸네일이 없는 공고는 공개/저장 대상에서 제외합니다.
+    원본 사이트가 이미지를 제공하지 않으면 AdSense 심사 표면에 얇은 카드가 생기므로
+    크롤링 단계에서 버립니다.
+    """
+    kept: list[dict] = []
+    discarded = 0
+    for contest in contests:
+        if has_valid_thumbnail(contest):
+            kept.append(contest)
+        else:
+            discarded += 1
+
+    if discarded:
+        logger.info(f"[{source_name}] 썸네일 없는 공고 폐기: {discarded}건")
     return kept
 
 
@@ -174,10 +195,11 @@ def main():
         if contests and ENABLE_DETAIL_FETCH:
             contests = _enrich_with_detail(source_name, contests, fetch_detail_fn)
 
-        result = {"inserted": 0, "updated": 0, "errors": 0}
+        result = {"inserted": 0, "updated": 0, "skipped": 0, "errors": 0}
         if contests:
             contests = _status_guard(source_name, contests)
             contests = _discard_expired(source_name, contests)
+            contests = _discard_without_thumbnail(source_name, contests)
 
         if contests:
             logger.info(f"[{source_name}] DB 저장 시작...")
@@ -190,6 +212,7 @@ def main():
             "collected": collected,
             "inserted": result["inserted"],
             "updated": result["updated"],
+            "skipped": result.get("skipped", 0),
             "failed": result["errors"],
             "samples": _sample_rows(contests, limit=3),
         }
@@ -201,7 +224,8 @@ def main():
 
         logger.info(
             f"[{source_name}] 저장 완료 | "
-            f"inserted={result['inserted']} updated={result['updated']} failed={result['errors']}"
+            f"inserted={result['inserted']} updated={result['updated']} "
+            f"skipped={result.get('skipped', 0)} failed={result['errors']}"
         )
 
         samples = source_summary["samples"]
@@ -236,6 +260,14 @@ def main():
     except Exception as e:
         logger.error(f"마감 공고 폐기 중 예외 발생: {e}")
 
+    logger.info("")
+    logger.info("── 썸네일 없는 공고 폐기 시작 (purge_no_thumbnail_contests) ──")
+    thumbnail_summary = {"checked": 0, "deleted": 0, "failed": 0}
+    try:
+        thumbnail_summary = purge_no_thumbnail_contests(client, source_site=None, dry_run=False)
+    except Exception as e:
+        logger.error(f"썸네일 없는 공고 폐기 중 예외 발생: {e}")
+
     rescore_summary = {"checked": 0, "updated": 0, "failed": 0}
     try:
         logger.info("── 자동 리뷰 점수 재계산 시작 (rescore_contests) ──")
@@ -263,7 +295,8 @@ def main():
     for s in source_summaries:
         logger.info(
             f"  - {s['source']}: inserted={s['inserted']}, "
-            f"updated={s['updated']}, failed={s['failed']}, collected={s['collected']}"
+            f"updated={s['updated']}, skipped={s.get('skipped', 0)}, "
+            f"failed={s['failed']}, collected={s['collected']}"
         )
     logger.info("close_expired:")
     logger.info(f"  checked={close_summary.get('checked', 0)}")
@@ -273,6 +306,10 @@ def main():
     logger.info(f"  checked={purge_summary.get('checked', 0)}")
     logger.info(f"  deleted={purge_summary.get('deleted', 0)}")
     logger.info(f"  failed={purge_summary.get('failed', 0)}")
+    logger.info("purge_no_thumbnail:")
+    logger.info(f"  checked={thumbnail_summary.get('checked', 0)}")
+    logger.info(f"  deleted={thumbnail_summary.get('deleted', 0)}")
+    logger.info(f"  failed={thumbnail_summary.get('failed', 0)}")
     logger.info("review_score:")
     logger.info(f"  checked={rescore_summary.get('checked', 0)}")
     logger.info(f"  updated={rescore_summary.get('updated', 0)}")

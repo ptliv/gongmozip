@@ -18,7 +18,12 @@ from dotenv import load_dotenv
 from supabase import create_client, Client
 
 from utils import logger
-from utils.auto_score import score_contest, decide_verified_level, get_score_label
+from utils.auto_score import (
+    decide_verified_level,
+    get_score_label,
+    has_valid_thumbnail,
+    score_contest,
+)
 from utils.normalize import normalize_date
 
 # .env.local 또는 .env 파일에서 환경변수 로드
@@ -94,6 +99,13 @@ def upsert_contest(client: Client, contest: dict) -> dict:
     """
     source_site = contest.get("source_site", "")
     external_id = contest.get("external_id", "")
+
+    if not has_valid_thumbnail(contest):
+        logger.info(
+            f"  [thumbnail] 저장 스킵: 썸네일 없음 | "
+            f"{contest.get('title','')[:40]}"
+        )
+        return {"action": "skip", "reason": "missing_thumbnail"}
 
     for date_field in ("apply_start_at", "apply_end_at"):
         normalized = normalize_date(contest.get(date_field) or "")
@@ -371,6 +383,97 @@ def purge_expired_contests(
     return summary
 
 
+def purge_no_thumbnail_contests(
+    client: Client,
+    source_site: Optional[str] = None,
+    dry_run: bool = False,
+    limit: Optional[int] = None,
+) -> dict:
+    """
+    poster_image_url이 없거나 placeholder인 공고를 DB에서 삭제합니다.
+
+    썸네일 없는 공고 카드는 AdSense 심사에서 얇은 수집 페이지처럼 보일 수 있어
+    크롤링 후 정리 단계에서 제거합니다.
+    """
+    summary: dict = {
+        "checked": 0,
+        "deleted": 0,
+        "failed": 0,
+        "candidate_samples": [],
+        "failed_samples": [],
+    }
+    mode = "DRY-RUN" if dry_run else "LIVE"
+    logger.info(f"[purge_no_thumbnail] 썸네일 없는 공고 폐기 시작 [{mode}]")
+
+    rows = []
+    page_size = 1000
+    offset = 0
+    try:
+        while True:
+            if limit is not None and len(rows) >= limit:
+                break
+
+            current_page_size = page_size
+            if limit is not None:
+                current_page_size = min(current_page_size, limit - len(rows))
+            if current_page_size <= 0:
+                break
+
+            query = client.table("contests").select(
+                "id,title,poster_image_url,source_site,verified_level,status"
+            ).range(offset, offset + current_page_size - 1)
+            if source_site:
+                query = query.eq("source_site", source_site)
+
+            page = query.execute().data or []
+            rows.extend(page)
+            if len(page) < current_page_size:
+                break
+            offset += current_page_size
+    except Exception as e:
+        logger.error(f"[purge_no_thumbnail] 대상 조회 실패: {e}")
+        summary["failed"] = 1
+        return summary
+
+    candidates = [row for row in rows if not has_valid_thumbnail(row)]
+    summary["checked"] = len(candidates)
+    summary["candidate_samples"] = candidates[:5]
+    logger.info(f"[purge_no_thumbnail] 폐기 후보: {len(candidates)}건")
+
+    if candidates:
+        logger.info("[purge_no_thumbnail] 후보 샘플 (최대 5건):")
+        for row in candidates[:5]:
+            logger.info(
+                f"  id={row['id'][:8]}... "
+                f"level={row.get('verified_level')} "
+                f"source={row.get('source_site') or 'manual'} "
+                f"title={row.get('title','')[:40]}"
+            )
+
+    if not candidates or dry_run:
+        return summary
+
+    BATCH_SIZE = 100
+    candidate_ids = [row["id"] for row in candidates]
+    for batch_start in range(0, len(candidate_ids), BATCH_SIZE):
+        batch_ids = candidate_ids[batch_start : batch_start + BATCH_SIZE]
+        try:
+            client.table("contests").delete().in_("id", batch_ids).execute()
+            summary["deleted"] += len(batch_ids)
+        except Exception as e:
+            err_msg = str(e)
+            logger.error(f"[purge_no_thumbnail] 배치 삭제 실패: {err_msg}")
+            summary["failed"] += len(batch_ids)
+            for cid in batch_ids[:5]:
+                summary["failed_samples"].append({"id": cid, "error": err_msg[:120]})
+
+    logger.info(
+        f"[purge_no_thumbnail] 완료 | checked={summary['checked']} "
+        f"deleted={summary['deleted']} failed={summary['failed']}"
+    )
+    return summary
+
+
 def rescore_contests(
     client: Client,
     source_site: Optional[str] = None,
@@ -480,7 +583,7 @@ def upsert_contests_bulk(client: Client, contests: list[dict]) -> dict:
     Returns:
         dict: {"inserted": int, "updated": int, "errors": int}
     """
-    result = {"inserted": 0, "updated": 0, "errors": 0}
+    result = {"inserted": 0, "updated": 0, "skipped": 0, "errors": 0}
 
     for i, contest in enumerate(contests, start=1):
         title = contest.get("title", "(제목 없음)")
@@ -494,6 +597,9 @@ def upsert_contests_bulk(client: Client, contests: list[dict]) -> dict:
         elif outcome["action"] == "update":
             result["updated"] += 1
             logger.info(f"    → UPDATE 완료 (id: {outcome['id']})")
+        elif outcome["action"] == "skip":
+            result["skipped"] += 1
+            logger.info(f"    → SKIP: {outcome.get('reason', 'skipped')}")
         else:
             result["errors"] += 1
             logger.error(f"    → 실패: {outcome.get('error', '알 수 없는 오류')}")

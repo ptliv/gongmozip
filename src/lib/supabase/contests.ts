@@ -20,12 +20,30 @@ const CONTEST_SELECT = `
 `;
 
 const PUBLIC_STATUSES = ["ongoing", "upcoming"] as const;
+const PLACEHOLDER_IMAGE_MARKERS = [
+  "noimg",
+  "noimgs",
+  "no-image",
+  "no_image",
+  "placeholder",
+  "default-image",
+  "main_img",
+];
+
+function hasPublicThumbnail(value?: string | null): boolean {
+  const url = value?.trim() ?? "";
+  if (!url.startsWith("http")) return false;
+  const lower = url.toLowerCase();
+  return !PLACEHOLDER_IMAGE_MARKERS.some((marker) => lower.includes(marker));
+}
 
 function applyPublicVisibility(query: any) {
   return query
     .gte("verified_level", 1)
     .in("status", PUBLIC_STATUSES)
-    .gt("apply_end_at", todayKey());
+    .gt("apply_end_at", todayKey())
+    .not("poster_image_url", "is", null)
+    .neq("poster_image_url", "");
 }
 
 function normalizeDateKey(value?: string | null): string | null {
@@ -64,7 +82,8 @@ export function isPublicContest(contest: Contest): boolean {
   return (
     contest.verified_level >= 1 &&
     PUBLIC_STATUSES.includes(contest.status as (typeof PUBLIC_STATUSES)[number]) &&
-    !isNotFutureDeadline(contest.apply_end_at)
+    !isNotFutureDeadline(contest.apply_end_at) &&
+    hasPublicThumbnail(contest.poster_image_url)
   );
 }
 
