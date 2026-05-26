@@ -44,6 +44,7 @@ export function ContestCard({ contest, variant = "default" }: ContestCardProps) 
                 alt={`${contest.title} 포스터`}
                 fill
                 sizes="44px"
+                quality={60}
                 className="object-cover"
               />
             ) : (
@@ -54,7 +55,7 @@ export function ContestCard({ contest, variant = "default" }: ContestCardProps) 
             <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
               {contest.title}
             </p>
-            <p className="text-xs text-gray-400 mt-0.5">{contest.organizer}</p>
+            <p className="text-xs text-gray-600 mt-0.5">{contest.organizer}</p>
             <p className="mt-1 text-[11px] font-semibold text-blue-600">
               지원 가치 {analysis.score}점 · 난이도 {analysis.difficultyLabel}
             </p>
@@ -79,7 +80,8 @@ export function ContestCard({ contest, variant = "default" }: ContestCardProps) 
                 src={posterUrl}
                 alt={`${contest.title} 포스터`}
                 fill
-                sizes="(min-width: 1024px) 30vw, (min-width: 640px) 45vw, 92vw"
+                sizes="(min-width: 1024px) 320px, (min-width: 640px) calc(50vw - 40px), calc(100vw - 76px)"
+                quality={60}
                 className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
               />
             ) : (
@@ -141,7 +143,7 @@ export function ContestCard({ contest, variant = "default" }: ContestCardProps) 
           {/* 분야 + 마감일 */}
           <div className="flex items-center justify-between pt-3 border-t border-gray-50">
             <CategoryChip label={contest.field} variant="field" />
-            <span className="text-xs text-gray-400 tabular-nums">
+            <span className="text-xs text-gray-600 tabular-nums">
               {contest.apply_end_at && deadlineText !== "마감일 미정"
                 ? `~${deadlineText}`
                 : deadlineText}

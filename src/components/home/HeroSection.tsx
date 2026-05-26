@@ -1,22 +1,8 @@
-"use client";
-
-import { useRouter } from "next/navigation";
-import { SearchBar } from "@/components/contest/SearchBar";
 import { POPULAR_TYPES } from "@/components/ui/CategoryChip";
 import Link from "next/link";
-import { Sparkles } from "lucide-react";
+import { Search, Sparkles } from "lucide-react";
 
 export function HeroSection() {
-  const router = useRouter();
-
-  const handleSearch = (value: string) => {
-    if (value.trim()) {
-      router.push(`/contests?q=${encodeURIComponent(value.trim())}`);
-    } else {
-      router.push("/contests");
-    }
-  };
-
   return (
     <section className="relative overflow-hidden bg-gradient-to-br from-slate-900 via-blue-950 to-violet-950 text-white">
       {/* 배경 장식 */}
@@ -50,12 +36,15 @@ export function HeroSection() {
 
           {/* 검색창 */}
           <div className="max-w-xl mx-auto mb-6">
-            <SearchBar
-              size="lg"
-              onSearch={handleSearch}
-              placeholder="삼성, 마케팅, 디자인으로 검색..."
-              className="[&_input]:bg-white/95 [&_input]:text-gray-900 [&_input]:placeholder:text-gray-400 [&_input]:shadow-lg"
-            />
+            <form action="/contests" className="relative">
+              <Search className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              <input
+                name="q"
+                type="search"
+                placeholder="삼성, 마케팅, 디자인으로 검색..."
+                className="h-14 w-full rounded-2xl border border-gray-200 bg-white/95 pl-12 pr-4 text-base text-gray-900 shadow-lg transition-all duration-150 placeholder:text-gray-400 hover:border-gray-300 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </form>
           </div>
 
           {/* 인기 유형 칩 */}

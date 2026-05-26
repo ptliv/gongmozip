@@ -32,9 +32,9 @@ export function Footer() {
 
           {/* 공고 링크 */}
           <div>
-            <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4">
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest mb-4">
               공고
-            </h4>
+            </p>
             <ul className="space-y-2.5">
               {["공모전", "대외활동", "인턴십", "봉사", "교육"].map((cat) => (
                 <li key={cat}>
@@ -51,9 +51,9 @@ export function Footer() {
 
           {/* 서비스 링크 */}
           <div>
-            <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4">
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest mb-4">
               서비스
-            </h4>
+            </p>
             <ul className="space-y-2.5">
               {[
                 { label: "공고 검색", href: "/contests" },
@@ -74,9 +74,9 @@ export function Footer() {
 
           {/* 정보 링크 */}
           <div>
-            <h4 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-4">
+            <p className="text-[11px] font-bold text-gray-600 uppercase tracking-widest mb-4">
               정보
-            </h4>
+            </p>
             <ul className="space-y-2.5">
               {TRUST_LINKS.map((link) => (
                 <li key={link.href}>
@@ -94,7 +94,7 @@ export function Footer() {
 
         {/* 하단 바 — 모바일에서도 신뢰 링크 노출 */}
         <div className="border-t border-gray-200 mt-10 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <p className="text-xs text-gray-400">
+          <p className="text-xs text-gray-600">
             © 2025 공모전집. All rights reserved.
           </p>
           <nav aria-label="정책 링크" className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
@@ -102,7 +102,7 @@ export function Footer() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-xs text-gray-400 hover:text-blue-600 transition-colors"
+                className="text-xs text-gray-600 hover:text-blue-600 transition-colors"
               >
                 {link.label}
               </Link>

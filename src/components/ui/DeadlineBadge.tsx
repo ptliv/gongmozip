@@ -7,10 +7,10 @@ interface DeadlineBadgeProps {
 }
 
 const styles = {
-  urgent: "bg-red-50 text-red-600 border border-red-200 ring-1 ring-red-100",
-  soon:   "bg-orange-50 text-orange-600 border border-orange-200",
+  urgent: "bg-red-50 text-red-700 border border-red-200 ring-1 ring-red-100",
+  soon:   "bg-orange-50 text-orange-700 border border-orange-200",
   normal: "bg-emerald-50 text-emerald-700 border border-emerald-200",
-  closed: "bg-gray-100 text-gray-400 border border-gray-200",
+  closed: "bg-gray-100 text-gray-700 border border-gray-200",
 };
 
 export function DeadlineBadge({ applyEndAt, className }: DeadlineBadgeProps) {

@@ -18,10 +18,37 @@ function getEnv(key: string): string {
   return value;
 }
 
+type NextFetchInit = RequestInit & {
+  next?: {
+    revalidate?: number | false;
+    tags?: string[];
+  };
+};
+
+const PUBLIC_DATA_REVALIDATE_SECONDS = Number(
+  process.env.PUBLIC_DATA_REVALIDATE_SECONDS ?? 300
+);
+
 function uncachedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
   return fetch(input, {
     ...init,
     cache: "no-store",
+  });
+}
+
+function cachedPublicFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+  const method = (init?.method ?? "GET").toUpperCase();
+  if (method !== "GET" && method !== "HEAD") {
+    return uncachedFetch(input, init);
+  }
+
+  const nextInit = init as NextFetchInit | undefined;
+  return fetch(input, {
+    ...nextInit,
+    next: {
+      ...nextInit?.next,
+      revalidate: PUBLIC_DATA_REVALIDATE_SECONDS,
+    },
   });
 }
 
@@ -31,7 +58,7 @@ export function createServerClient() {
     getEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY"),
     {
       auth: { persistSession: false },
-      global: { fetch: uncachedFetch },
+      global: { fetch: cachedPublicFetch },
     }
   );
 }
