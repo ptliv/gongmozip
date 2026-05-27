@@ -6,7 +6,7 @@ REM Publish one Gongmozip contest roundup to Threads.
 REM The Python script reuses THREADS_PROFILE_NAME or the single active profile
 REM in C:\madeinmine\threads auto\threads_automator\data\app.db.
 
-python scripts\threads_contest_publisher.py --publish --audience auto --count 5
+python scripts\threads_contest_publisher.py --publish --audience auto --count 5 --daily-limit 10
 set EXIT_CODE=%ERRORLEVEL%
 
 if not "%EXIT_CODE%"=="0" (

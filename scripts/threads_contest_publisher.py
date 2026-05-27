@@ -39,6 +39,8 @@ from utils.supabase_client import get_supabase_client  # noqa: E402
 KST = ZoneInfo("Asia/Seoul")
 THREADS_GRAPH_BASE_URL = "https://graph.threads.net/v1.0"
 THREADS_MAX_TEXT_LEN = 500
+LOCAL_DAILY_PUBLISH_LIMIT = 10
+PUBLISH_UNITS_PER_RUN = 2
 DEFAULT_SITE_URL = "https://www.gongmozip.com"
 DEFAULT_THREADS_DB_PATH = Path(r"C:\madeinmine\threads auto\threads_automator\data\app.db")
 DEFAULT_HISTORY_PATH = SCRIPT_DIR / "data" / "threads_contest_history.json"
@@ -122,6 +124,13 @@ def days_until(value: Any) -> int | None:
 
 def clean_whitespace(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value or "")).strip()
+
+
+def safe_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
 
 
 def truncate(value: str, max_len: int) -> str:
@@ -221,6 +230,24 @@ def recent_history_ids(records: list[dict[str, Any]], history_days: int) -> set[
             if contest_id:
                 seen.add(str(contest_id))
     return seen
+
+
+def count_today_history_publish_units(records: list[dict[str, Any]]) -> int:
+    today = datetime.now(KST).date()
+    total = 0
+    for record in records:
+        if record.get("dry_run"):
+            continue
+        published_at = parse_date_key(record.get("published_at"))
+        if not published_at or published_at.date() != today:
+            continue
+        units = record.get("publish_units")
+        if units is not None:
+            total += safe_int(units, 0)
+            continue
+        total += 1 if record.get("media_id") else 0
+        total += 1 if record.get("reply_id") else 0
+    return total
 
 
 def fetch_candidate_contests(pool_size: int, min_score: int) -> list[dict[str, Any]]:
@@ -474,19 +501,42 @@ def resolve_credentials(args: argparse.Namespace) -> ThreadsCredentials:
     return ThreadsCredentials(access_token=token, user_id=user_id, profile=profile, source=source)
 
 
-def ensure_profile_publish_allowed(profile: dict[str, Any] | None, ignore_limit: bool) -> None:
-    if ignore_limit or not profile:
+def effective_daily_limit(profile: dict[str, Any] | None, requested_limit: int) -> int:
+    requested = min(max(1, safe_int(requested_limit, LOCAL_DAILY_PUBLISH_LIMIT)), LOCAL_DAILY_PUBLISH_LIMIT)
+    if not profile:
+        return requested
+    profile_limit = safe_int(profile.get("max_posts_per_day"), LOCAL_DAILY_PUBLISH_LIMIT)
+    profile_limit = min(max(1, profile_limit), LOCAL_DAILY_PUBLISH_LIMIT)
+    return min(requested, profile_limit)
+
+
+def get_profile_daily_count(profile: dict[str, Any] | None) -> int:
+    if not profile:
+        return 0
+    return safe_int(profile.get("daily_post_count"), 0)
+
+
+def ensure_profile_publish_allowed(
+    profile: dict[str, Any] | None,
+    ignore_limit: bool,
+    required_units: int,
+    requested_daily_limit: int,
+    history_records: list[dict[str, Any]],
+) -> None:
+    if ignore_limit:
         return
-    daily = int(profile.get("daily_post_count") or 0)
-    max_posts = int(profile.get("max_posts_per_day") or 0)
-    if max_posts > 0 and daily >= max_posts:
+    limit = effective_daily_limit(profile, requested_daily_limit)
+    used = get_profile_daily_count(profile) if profile else count_today_history_publish_units(history_records)
+    if used + required_units > limit:
+        source = f"profile '{profile.get('name')}'" if profile else "local history"
         raise RuntimeError(
-            f"기존 Threads 프로필 '{profile.get('name')}'의 오늘 발행 수가 "
-            f"{daily}/{max_posts}입니다. 제한을 무시하려면 --ignore-profile-limit를 붙이세요."
+            f"Daily Threads publish limit reached for {source}: "
+            f"used={used}, required={required_units}, limit={limit}. "
+            "One Gongmozip roundup uses 2 publishes: body + reply link."
         )
 
 
-def increment_profile_count(db_path: Path, profile: dict[str, Any] | None) -> None:
+def increment_profile_count(db_path: Path, profile: dict[str, Any] | None, units: int = 1) -> None:
     if not profile or not db_path.exists():
         return
     profile_id = profile.get("id")
@@ -496,12 +546,12 @@ def increment_profile_count(db_path: Path, profile: dict[str, Any] | None) -> No
         conn.execute(
             """
             UPDATE profiles
-            SET daily_post_count = COALESCE(daily_post_count, 0) + 1,
-                daily_job_count = COALESCE(daily_job_count, 0) + 1,
+            SET daily_post_count = COALESCE(daily_post_count, 0) + ?,
+                daily_job_count = COALESCE(daily_job_count, 0) + ?,
                 last_published_at = datetime('now','localtime')
             WHERE id=?
             """,
-            (profile_id,),
+            (max(1, int(units)), max(1, int(units)), profile_id),
         )
         conn.commit()
 
@@ -588,6 +638,41 @@ class ThreadsGraphPublisher:
         return str(response.json()["id"])
 
 
+def get_threads_remote_quota(access_token: str) -> dict[str, Any] | None:
+    try:
+        response = requests.get(
+            f"{THREADS_GRAPH_BASE_URL}/me/threads_publishing_limit",
+            params={
+                "fields": "quota_usage,config,reply_quota_usage,reply_config",
+                "access_token": access_token,
+            },
+            timeout=15,
+        )
+        if not response.ok:
+            return None
+        data = response.json()
+        rows = data.get("data") if isinstance(data, dict) else None
+        if isinstance(rows, list) and rows:
+            return rows[0]
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
+def ensure_remote_quota_available(quota: dict[str, Any] | None) -> None:
+    if not quota:
+        return
+    post_used = safe_int(quota.get("quota_usage"), 0)
+    post_total = safe_int((quota.get("config") or {}).get("quota_total"), 0)
+    reply_used = safe_int(quota.get("reply_quota_usage"), 0)
+    reply_total = safe_int((quota.get("reply_config") or {}).get("quota_total"), 0)
+
+    if post_total and post_used + 1 > post_total:
+        raise RuntimeError(f"Threads remote post quota reached: {post_used}/{post_total}")
+    if reply_total and reply_used + 1 > reply_total:
+        raise RuntimeError(f"Threads remote reply quota reached: {reply_used}/{reply_total}")
+
+
 def notify_discord(webhook_url: str, title: str, message: str, success: bool) -> None:
     if not webhook_url:
         return
@@ -642,6 +727,7 @@ def build_history_record(
     contests: list[dict[str, Any]],
     media_id: str | None,
     reply_id: str | None,
+    publish_units: int,
     dry_run: bool,
 ) -> dict[str, Any]:
     return {
@@ -654,6 +740,7 @@ def build_history_record(
         "short_url": short_url,
         "media_id": media_id,
         "reply_id": reply_id,
+        "publish_units": publish_units,
         "contests": [
             {
                 "id": row.get("id"),
@@ -698,6 +785,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--history-days", type=int, default=14)
     parser.add_argument("--ignore-history", action="store_true")
     parser.add_argument("--ignore-profile-limit", action="store_true")
+    parser.add_argument(
+        "--daily-limit",
+        type=int,
+        default=int(os.getenv("THREADS_DAILY_LIMIT", str(LOCAL_DAILY_PUBLISH_LIMIT))),
+        help="로컬 안전 일일 발행 한도입니다. 실제 적용값은 최대 10입니다.",
+    )
     parser.add_argument("--list-profiles", action="store_true")
     parser.add_argument("--discord-webhook-url", default=os.getenv("THREADS_DISCORD_WEBHOOK_URL", ""))
     return parser.parse_args()
@@ -751,11 +844,22 @@ def main() -> int:
             return 0
 
         credentials = resolve_credentials(args)
-        ensure_profile_publish_allowed(credentials.profile, args.ignore_profile_limit)
+        required_units = PUBLISH_UNITS_PER_RUN
+        ensure_profile_publish_allowed(
+            credentials.profile,
+            args.ignore_profile_limit,
+            required_units,
+            args.daily_limit,
+            history_records,
+        )
+        remote_quota = get_threads_remote_quota(credentials.access_token)
+        ensure_remote_quota_available(remote_quota)
 
         publisher = ThreadsGraphPublisher(credentials.access_token, credentials.user_id)
         media_id = publisher.publish_post(body)
+        increment_profile_count(db_path, credentials.profile, units=1)
         reply_id = publisher.publish_reply(media_id, comment)
+        increment_profile_count(db_path, credentials.profile, units=1)
 
         record = build_history_record(
             audience=audience,
@@ -766,11 +870,11 @@ def main() -> int:
             contests=selected,
             media_id=media_id,
             reply_id=reply_id,
+            publish_units=required_units,
             dry_run=False,
         )
         history_records.append(record)
         write_history(history_path, history_records)
-        increment_profile_count(db_path, credentials.profile)
 
         success_message = (
             f"본문 media_id: {media_id}\n"
@@ -778,6 +882,8 @@ def main() -> int:
             f"대상: {audience}\n"
             f"공모전: {len(selected)}개\n"
             f"링크: {short_url}\n"
+            f"local_daily_limit: {effective_daily_limit(credentials.profile, args.daily_limit)}\n"
+            f"publish_units: {required_units}\n"
             f"credential_source: {credentials.source}"
         )
         print("\n[published] Threads 발행 완료")

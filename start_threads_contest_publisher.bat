@@ -8,6 +8,7 @@ set "COUNT=5"
 if /I "%~1"=="publish" goto publish
 if /I "%~1"=="dry" goto dryrun
 if /I "%~1"=="preview" goto dryrun
+if /I "%~1"=="schedule" goto scheduler
 
 echo.
 echo Gongmozip Threads Publisher
@@ -15,10 +16,12 @@ echo ===========================
 echo 1. Dry-run preview only
 echo 2. Publish to Threads
 echo 3. List Threads profiles
-echo 4. Exit
+echo 4. Start scheduler in this terminal
+echo 5. Exit
 echo.
-choice /C 1234 /N /M "Select: "
-if errorlevel 4 goto end
+choice /C 12345 /N /M "Select: "
+if errorlevel 5 goto end
+if errorlevel 4 goto scheduler
 if errorlevel 3 goto profiles
 if errorlevel 2 goto publish
 if errorlevel 1 goto dryrun
@@ -39,6 +42,19 @@ goto finish
 :profiles
 echo.
 python scripts\threads_contest_publisher.py --list-profiles
+goto finish
+
+:scheduler
+echo.
+set "DEFAULT_TIMES=09:10,12:30,15:30,18:30,21:30"
+echo One Gongmozip publish uses 2 API publishes: body + reply link.
+echo With the local daily limit set to 10, use at most 5 scheduled times per day.
+echo.
+set /p "TIMES=Publish times HH:MM comma-separated [%DEFAULT_TIMES%]: "
+if "%TIMES%"=="" set "TIMES=%DEFAULT_TIMES%"
+echo.
+echo [scheduler] Keep this terminal open. Press Ctrl+C to stop.
+python scripts\threads_contest_scheduler.py --times "%TIMES%" --daily-limit 10 --audience %AUDIENCE% --count %COUNT%
 goto finish
 
 :finish
