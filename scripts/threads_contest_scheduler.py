@@ -37,6 +37,7 @@ from threads_contest_publisher import (  # noqa: E402
     get_profile_daily_count,
     load_env,
     load_history,
+    notify_discord,
     refresh_profile_daily_counts,
 )
 
@@ -113,7 +114,7 @@ def quota_snapshot(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
-def build_command(args: argparse.Namespace) -> list[str]:
+def build_command(args: argparse.Namespace, next_run_at: str = "") -> list[str]:
     command = [
         sys.executable,
         str(SCRIPT_DIR / "threads_contest_publisher.py"),
@@ -137,6 +138,8 @@ def build_command(args: argparse.Namespace) -> list[str]:
         command.extend(["--shortener", args.shortener])
     if args.discord_webhook_url:
         command.extend(["--discord-webhook-url", args.discord_webhook_url])
+    if next_run_at:
+        command.extend(["--next-run-at", next_run_at])
     if args.force_token_refresh:
         command.append("--force-token-refresh")
     if args.require_token_refresh:
@@ -171,7 +174,7 @@ def next_run_text(times: list[str]) -> str:
     return min(candidates).strftime("%Y-%m-%d %H:%M")
 
 
-def run_publish(args: argparse.Namespace, slot: str) -> int:
+def run_publish(args: argparse.Namespace, slot: str, next_run_at: str = "") -> int:
     quota = quota_snapshot(args)
     print(
         f"[{datetime.now(KST).strftime('%Y-%m-%d %H:%M:%S')}] "
@@ -179,17 +182,40 @@ def run_publish(args: argparse.Namespace, slot: str) -> int:
         f"remaining={quota['remaining']} source={quota['source']}"
     )
     if not quota["can_publish"]:
-        print(
+        message = (
             "[skip] Not enough local quota for one roundup. "
             f"Need {PUBLISH_UNITS_PER_RUN}, remaining {quota['remaining']}."
         )
+        print(message)
+        notify_discord(
+            args.discord_webhook_url,
+            "공모전집 Threads 발행 건너뜀",
+            f"{message}\n다음 발행: {next_run_at or '미정'}",
+            False,
+        )
         return 0
 
-    command = build_command(args)
+    command = build_command(args, next_run_at=next_run_at)
     print("[run] " + " ".join(f'"{part}"' if " " in part else part for part in command))
-    completed = subprocess.run(command, cwd=ROOT_DIR)
-    print(f"[done] exit_code={completed.returncode}")
-    return int(completed.returncode)
+    try:
+        completed = subprocess.run(command, cwd=ROOT_DIR)
+        print(f"[done] exit_code={completed.returncode}")
+        if completed.returncode != 0:
+            notify_discord(
+                args.discord_webhook_url,
+                "공모전집 Threads 발행 프로세스 오류",
+                f"slot={slot}\nexit_code={completed.returncode}\n다음 발행: {next_run_at or '미정'}",
+                False,
+            )
+        return int(completed.returncode)
+    except Exception as exc:
+        notify_discord(
+            args.discord_webhook_url,
+            "공모전집 Threads 스케줄러 오류",
+            f"slot={slot}\n오류: {exc}\n다음 발행: {next_run_at or '미정'}",
+            False,
+        )
+        raise
 
 
 def run_fixed_time_loop(args: argparse.Namespace) -> int:
@@ -207,7 +233,7 @@ def run_fixed_time_loop(args: argparse.Namespace) -> int:
     active_day = datetime.now(KST).date()
 
     if args.run_now:
-        run_publish(args, "run-now")
+        run_publish(args, "run-now", next_run_at=next_run_text(times))
 
     try:
         while True:
@@ -221,12 +247,19 @@ def run_fixed_time_loop(args: argparse.Namespace) -> int:
             slot = f"{now.date().isoformat()} {current_time}"
             if current_time in times and slot not in fired_slots:
                 fired_slots.add(slot)
-                run_publish(args, slot)
-                print(f"[wait] next run: {next_run_text(times)}")
+                next_after = next_run_text(times)
+                run_publish(args, slot, next_run_at=next_after)
+                print(f"[wait] next run: {next_after}")
 
             time.sleep(max(5, int(args.poll_seconds)))
     except KeyboardInterrupt:
         print("\n[stop] scheduler stopped by user.")
+        notify_discord(
+            args.discord_webhook_url,
+            "공모전집 Threads 스케줄러 중지",
+            "사용자 요청 또는 터미널 종료로 스케줄러가 중지되었습니다.",
+            False,
+        )
         return 0
 
 
@@ -253,8 +286,8 @@ def run_interval_loop(args: argparse.Namespace) -> int:
 
     active_day = datetime.now(KST).date()
     if args.run_now:
-        run_publish(args, "run-now")
         next_run = next_interval_time(args)
+        run_publish(args, "run-now", next_run_at=format_dt(next_run))
         print(f"[wait] next run: {format_dt(next_run)}")
 
     try:
@@ -265,13 +298,21 @@ def run_interval_loop(args: argparse.Namespace) -> int:
                 print(f"[reset] new day {active_day}; quota will be re-read from profile/history.")
 
             if now >= next_run:
-                run_publish(args, format_dt(next_run))
-                next_run = next_interval_time(args)
+                slot_text = format_dt(next_run)
+                next_after = next_interval_time(args)
+                run_publish(args, slot_text, next_run_at=format_dt(next_after))
+                next_run = next_after
                 print(f"[wait] next run: {format_dt(next_run)}")
 
             time.sleep(max(5, int(args.poll_seconds)))
     except KeyboardInterrupt:
         print("\n[stop] scheduler stopped by user.")
+        notify_discord(
+            args.discord_webhook_url,
+            "공모전집 Threads 스케줄러 중지",
+            "사용자 요청 또는 터미널 종료로 스케줄러가 중지되었습니다.",
+            False,
+        )
         return 0
 
 

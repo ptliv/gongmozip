@@ -677,6 +677,16 @@ def ensure_threads_token_fresh(credentials: ThreadsCredentials, args: argparse.N
             "[token] Threads token "
             f"{status}; expires_at={refreshed.get('expires_at') or 'unknown'}"
         )
+        notify_discord(
+            args.discord_webhook_url,
+            "공모전집 Threads 토큰 리프레시 완료",
+            (
+                f"상태: {status}\n"
+                f"계정 소스: {credentials.source}\n"
+                f"만료 예정: {refreshed.get('expires_at') or 'unknown'}"
+            ),
+            True,
+        )
         return credentials
     except Exception as exc:
         update_profile_token_fields(
@@ -689,6 +699,12 @@ def ensure_threads_token_fresh(credentials: ThreadsCredentials, args: argparse.N
             },
         )
         print(f"[warn] Threads token refresh failed; using existing token: {exc}", file=sys.stderr)
+        notify_discord(
+            args.discord_webhook_url,
+            "공모전집 Threads 토큰 리프레시 실패",
+            f"오류: {exc}",
+            False,
+        )
         if args.require_token_refresh:
             raise
         return credentials
@@ -934,6 +950,20 @@ def get_threads_me(access_token: str) -> dict[str, Any]:
     return response.json()
 
 
+def get_thread_info(access_token: str, media_id: str) -> dict[str, Any]:
+    response = requests.get(
+        f"{THREADS_GRAPH_BASE_URL}/{media_id}",
+        params={
+            "fields": "id,text,permalink,timestamp,username",
+            "access_token": access_token,
+        },
+        timeout=15,
+    )
+    if not response.ok:
+        return {"id": media_id, "error": response.text[:300]}
+    return response.json()
+
+
 def align_credentials_user_id(credentials: ThreadsCredentials, args: argparse.Namespace) -> ThreadsCredentials:
     if not args.auto_detect_user_id:
         return credentials
@@ -1124,6 +1154,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--list-profiles", action="store_true")
     parser.add_argument("--discord-webhook-url", default=os.getenv("THREADS_DISCORD_WEBHOOK_URL", ""))
+    parser.add_argument("--next-run-at", default=os.getenv("THREADS_NEXT_RUN_AT", ""))
     return parser.parse_args()
 
 
@@ -1196,6 +1227,8 @@ def main() -> int:
         reply_id = publisher.publish_reply(media_id, comment)
         if should_use_profile_counter(credentials):
             increment_profile_count(db_path, credentials.profile, units=1)
+        post_info = get_thread_info(credentials.access_token, media_id)
+        post_permalink = clean_whitespace(post_info.get("permalink"))
 
         record = build_history_record(
             audience=audience,
@@ -1213,23 +1246,28 @@ def main() -> int:
         write_history(history_path, history_records)
 
         success_message = (
+            "1건 발행완료\n"
             f"본문 media_id: {media_id}\n"
             f"댓글 reply_id: {reply_id}\n"
             f"대상: {audience}\n"
             f"공모전: {len(selected)}개\n"
             f"링크: {short_url}\n"
+            f"Threads 링크: {post_permalink or '확인 필요'}\n"
+            f"다음 발행: {args.next_run_at or '스케줄러 미지정'}\n"
             f"local_daily_limit: {effective_daily_limit(quota_profile, args.daily_limit)}\n"
             f"publish_units: {required_units}\n"
             f"credential_source: {credentials.source}"
         )
         print("\n[published] Threads 발행 완료")
         print(success_message)
-        notify_discord(args.discord_webhook_url, "공모전집 Threads 발행 성공", success_message, True)
+        notify_discord(args.discord_webhook_url, "공모전집 Threads 1건 발행완료", success_message, True)
         return 0
 
     except Exception as exc:
         error_message = f"{type(exc).__name__}: {exc}"
-        notify_discord(args.discord_webhook_url, "공모전집 Threads 발행 실패", error_message, False)
+        if args.next_run_at:
+            error_message += f"\n다음 발행: {args.next_run_at}"
+        notify_discord(args.discord_webhook_url, "공모전집 Threads 오류 발생", error_message, False)
         print(f"[error] {error_message}", file=sys.stderr)
         return 1
 
