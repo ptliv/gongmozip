@@ -25,3 +25,6 @@ tsconfig.tsbuildinfo
 
 # local OCI retry launcher config
 scripts/oci-a1-config.json
+
+# local publisher run history
+scripts/data/threads_contest_history.json

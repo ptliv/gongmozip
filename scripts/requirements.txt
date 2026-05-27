@@ -3,3 +3,5 @@ beautifulsoup4==4.12.3
 python-dotenv==1.0.1
 supabase==2.4.6
 lxml==5.1.0
+keyring==25.3.0
+keyrings.alt==5.0.2
