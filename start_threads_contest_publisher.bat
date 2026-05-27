@@ -46,15 +46,22 @@ goto finish
 
 :scheduler
 echo.
-set "DEFAULT_TIMES=09:10,12:30,15:30,18:30,21:30"
+set "DEFAULT_INTERVAL=60"
+set "DEFAULT_JITTER=15"
 echo One Gongmozip publish uses 2 API publishes: body + reply link.
-echo With the local daily limit set to 10, use at most 5 scheduled times per day.
+echo The scheduler uses 60 minutes plus random extra minutes between runs.
+echo With the local daily limit set to 10, it will publish at most 5 times per day.
 echo.
-set /p "TIMES=Publish times HH:MM comma-separated [%DEFAULT_TIMES%]: "
-if "%TIMES%"=="" set "TIMES=%DEFAULT_TIMES%"
+set /p "START_AT=First publish time HH:MM [blank = after %DEFAULT_INTERVAL%+a minutes]: "
+set /p "JITTER=Random extra minutes max [%DEFAULT_JITTER%]: "
+if "%JITTER%"=="" set "JITTER=%DEFAULT_JITTER%"
 echo.
 echo [scheduler] Keep this terminal open. Press Ctrl+C to stop.
-python scripts\threads_contest_scheduler.py --times "%TIMES%" --daily-limit 10 --audience %AUDIENCE% --count %COUNT%
+if "%START_AT%"=="" (
+  python scripts\threads_contest_scheduler.py --interval-minutes %DEFAULT_INTERVAL% --jitter-minutes "%JITTER%" --daily-limit 10 --audience %AUDIENCE% --count %COUNT%
+) else (
+  python scripts\threads_contest_scheduler.py --interval-minutes %DEFAULT_INTERVAL% --jitter-minutes "%JITTER%" --start-at "%START_AT%" --daily-limit 10 --audience %AUDIENCE% --count %COUNT%
+)
 goto finish
 
 :finish

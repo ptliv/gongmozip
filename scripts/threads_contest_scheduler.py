@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import random
 import re
 import subprocess
 import sys
@@ -26,6 +27,7 @@ if str(SCRIPT_DIR) not in sys.path:
 from threads_contest_publisher import (  # noqa: E402
     DEFAULT_HISTORY_PATH,
     DEFAULT_THREADS_DB_PATH,
+    DEFAULT_TOKEN_REFRESH_WINDOW_DAYS,
     KST,
     LOCAL_DAILY_PUBLISH_LIMIT,
     PUBLISH_UNITS_PER_RUN,
@@ -40,6 +42,8 @@ from threads_contest_publisher import (  # noqa: E402
 
 
 DEFAULT_TIMES = "09:10,12:30,15:30,18:30,21:30"
+DEFAULT_INTERVAL_MINUTES = 60
+DEFAULT_JITTER_MINUTES = 15
 
 
 def parse_times(value: str) -> list[str]:
@@ -53,6 +57,31 @@ def parse_times(value: str) -> list[str]:
     if not parsed:
         raise ValueError("At least one publish time is required.")
     return sorted(set(parsed))
+
+
+def parse_start_at(value: str) -> datetime | None:
+    text = (value or "").strip()
+    if not text:
+        return None
+    match = re.fullmatch(r"([01]?\d|2[0-3]):([0-5]\d)", text)
+    if not match:
+        raise ValueError(f"Invalid start time '{text}'. Use HH:MM, for example 09:10.")
+    now = datetime.now(KST)
+    candidate = datetime(
+        now.year,
+        now.month,
+        now.day,
+        int(match.group(1)),
+        int(match.group(2)),
+        tzinfo=KST,
+    )
+    if candidate <= now:
+        candidate += timedelta(days=1)
+    return candidate
+
+
+def format_dt(value: datetime) -> str:
+    return value.astimezone(KST).strftime("%Y-%m-%d %H:%M")
 
 
 def safe_limit(value: int) -> int:
@@ -107,6 +136,13 @@ def build_command(args: argparse.Namespace) -> list[str]:
         command.extend(["--shortener", args.shortener])
     if args.discord_webhook_url:
         command.extend(["--discord-webhook-url", args.discord_webhook_url])
+    if args.force_token_refresh:
+        command.append("--force-token-refresh")
+    if args.require_token_refresh:
+        command.append("--require-token-refresh")
+    if args.no_token_refresh:
+        command.append("--no-auto-refresh-token")
+    command.extend(["--token-refresh-window-days", str(args.token_refresh_window_days)])
     if args.ignore_history:
         command.append("--ignore-history")
     return command
@@ -155,7 +191,7 @@ def run_publish(args: argparse.Namespace, slot: str) -> int:
     return int(completed.returncode)
 
 
-def run_loop(args: argparse.Namespace) -> int:
+def run_fixed_time_loop(args: argparse.Namespace) -> int:
     times = parse_times(args.times)
     print("Gongmozip Threads resident scheduler")
     print("=" * 38)
@@ -193,12 +229,76 @@ def run_loop(args: argparse.Namespace) -> int:
         return 0
 
 
+def next_interval_time(args: argparse.Namespace, base: datetime | None = None) -> datetime:
+    now = base or datetime.now(KST)
+    interval = max(1, int(args.interval_minutes))
+    jitter = max(0, int(args.jitter_minutes))
+    extra = random.randint(0, jitter) if jitter else 0
+    return now + timedelta(minutes=interval + extra)
+
+
+def run_interval_loop(args: argparse.Namespace) -> int:
+    start_at = parse_start_at(args.start_at)
+    next_run = start_at or next_interval_time(args)
+    print("Gongmozip Threads interval scheduler")
+    print("=" * 38)
+    print(f"interval    : {max(1, int(args.interval_minutes))} minutes")
+    print(f"jitter      : 0-{max(0, int(args.jitter_minutes))} minutes")
+    print(f"daily limit : {safe_limit(args.daily_limit)}")
+    print(f"per publish : {PUBLISH_UNITS_PER_RUN} units (body + reply link)")
+    print(f"next run    : {format_dt(next_run)}")
+    print("Keep this terminal open. Press Ctrl+C to stop.")
+    print()
+
+    active_day = datetime.now(KST).date()
+    if args.run_now:
+        run_publish(args, "run-now")
+        next_run = next_interval_time(args)
+        print(f"[wait] next run: {format_dt(next_run)}")
+
+    try:
+        while True:
+            now = datetime.now(KST)
+            if now.date() != active_day:
+                active_day = now.date()
+                print(f"[reset] new day {active_day}; quota will be re-read from profile/history.")
+
+            if now >= next_run:
+                run_publish(args, format_dt(next_run))
+                next_run = next_interval_time(args)
+                print(f"[wait] next run: {format_dt(next_run)}")
+
+            time.sleep(max(5, int(args.poll_seconds)))
+    except KeyboardInterrupt:
+        print("\n[stop] scheduler stopped by user.")
+        return 0
+
+
+def run_loop(args: argparse.Namespace) -> int:
+    if int(args.interval_minutes) > 0:
+        return run_interval_loop(args)
+    return run_fixed_time_loop(args)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Keep a terminal open and publish Gongmozip Threads posts at set times.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument("--times", default=os.getenv("THREADS_SCHEDULE_TIMES", DEFAULT_TIMES))
+    parser.add_argument(
+        "--interval-minutes",
+        type=int,
+        default=int(os.getenv("THREADS_PUBLISH_INTERVAL_MINUTES", str(DEFAULT_INTERVAL_MINUTES))),
+        help="Use interval mode when this is greater than 0. Set 0 to use --times fixed-time mode.",
+    )
+    parser.add_argument(
+        "--jitter-minutes",
+        type=int,
+        default=int(os.getenv("THREADS_PUBLISH_JITTER_MINUTES", str(DEFAULT_JITTER_MINUTES))),
+        help="Random extra minutes added after each interval run.",
+    )
+    parser.add_argument("--start-at", default=os.getenv("THREADS_PUBLISH_START_AT", ""))
     parser.add_argument("--audience", choices=["auto", "1020", "2030", "3040"], default="auto")
     parser.add_argument("--count", type=int, default=int(os.getenv("THREADS_CONTEST_COUNT", "5")))
     parser.add_argument("--min-contests", type=int, default=3)
@@ -211,6 +311,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--history-path", default=os.getenv("THREADS_CONTEST_HISTORY_PATH", str(DEFAULT_HISTORY_PATH)))
     parser.add_argument("--ignore-history", action="store_true")
     parser.add_argument("--run-now", action="store_true")
+    parser.add_argument("--force-token-refresh", action="store_true")
+    parser.add_argument("--require-token-refresh", action="store_true")
+    parser.add_argument("--no-token-refresh", action="store_true")
+    parser.add_argument(
+        "--token-refresh-window-days",
+        type=int,
+        default=int(os.getenv("THREADS_TOKEN_REFRESH_WINDOW_DAYS", str(DEFAULT_TOKEN_REFRESH_WINDOW_DAYS))),
+    )
     return parser.parse_args()
 
 

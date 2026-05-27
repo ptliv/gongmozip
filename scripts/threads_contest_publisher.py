@@ -19,7 +19,7 @@ import sqlite3
 import sys
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlencode
@@ -38,9 +38,12 @@ from utils.supabase_client import get_supabase_client  # noqa: E402
 
 KST = ZoneInfo("Asia/Seoul")
 THREADS_GRAPH_BASE_URL = "https://graph.threads.net/v1.0"
+THREADS_REFRESH_URL = "https://graph.threads.net/refresh_access_token"
+THREADS_EXCHANGE_URL = "https://graph.threads.net/access_token"
 THREADS_MAX_TEXT_LEN = 500
 LOCAL_DAILY_PUBLISH_LIMIT = 10
 PUBLISH_UNITS_PER_RUN = 2
+DEFAULT_TOKEN_REFRESH_WINDOW_DAYS = 14
 DEFAULT_SITE_URL = "https://www.gongmozip.com"
 DEFAULT_THREADS_DB_PATH = Path(r"C:\madeinmine\threads auto\threads_automator\data\app.db")
 DEFAULT_HISTORY_PATH = SCRIPT_DIR / "data" / "threads_contest_history.json"
@@ -98,6 +101,17 @@ def now_iso() -> str:
     return datetime.now(KST).isoformat(timespec="seconds")
 
 
+def utc_now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def iso_utc(value: datetime | None = None) -> str:
+    dt = value or utc_now()
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
 def parse_date_key(value: Any) -> datetime | None:
     if not value:
         return None
@@ -113,6 +127,29 @@ def parse_date_key(value: Any) -> datetime | None:
         return datetime.fromisoformat(text.replace("Z", "+00:00")).astimezone(KST)
     except ValueError:
         return None
+
+
+def parse_datetime_any(value: Any) -> datetime | None:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    text = str(value).strip()
+    if not text:
+        return None
+    normalized = text.replace("Z", "+00:00").replace(" ", "T")
+    try:
+        parsed = datetime.fromisoformat(normalized)
+        return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
+    except ValueError:
+        pass
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+        try:
+            parsed = datetime.strptime(text[: len(fmt)], fmt)
+            return parsed.replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+    return None
 
 
 def days_until(value: Any) -> int | None:
@@ -391,15 +428,34 @@ def read_threads_profiles(db_path: Path) -> list[dict[str, Any]]:
         return []
     with sqlite3.connect(db_path) as conn:
         conn.row_factory = sqlite3.Row
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(profiles)").fetchall()}
+        optional_columns = [
+            "last_published_at",
+            "threads_app_id",
+            "threads_app_secret",
+            "threads_token_expires_at",
+            "threads_token_refresh_after",
+            "threads_token_refresh_interval_days",
+            "threads_token_last_checked_at",
+            "threads_token_status",
+            "threads_token_last_error",
+        ]
+        select_columns = [
+            "id",
+            "name",
+            "access_token",
+            "user_id",
+            "is_active",
+            "account_status",
+            "daily_post_count",
+            "max_posts_per_day",
+            "daily_job_count",
+            "max_jobs_per_day",
+            "threads_proxy_url",
+        ]
+        select_columns.extend(column for column in optional_columns if column in columns)
         rows = conn.execute(
-            """
-            SELECT id, name, access_token, user_id, is_active, account_status,
-                   daily_post_count, max_posts_per_day, daily_job_count,
-                   max_jobs_per_day, threads_proxy_url
-                   , last_published_at
-            FROM profiles
-            ORDER BY id
-            """
+            f"SELECT {', '.join(select_columns)} FROM profiles ORDER BY id"
         ).fetchall()
     return [dict(row) for row in rows]
 
@@ -432,6 +488,207 @@ def read_keyring_token(profile_name: str) -> str | None:
     except Exception:
         return None
     return token.strip() if token else None
+
+
+def write_keyring_token(profile_name: str, token: str) -> None:
+    if not profile_name or not token:
+        return
+    try:
+        import keyring  # type: ignore
+    except ImportError:
+        return
+    try:
+        keyring.set_password(THREADS_KEYRING_APP_NAME, profile_name, token)
+    except Exception:
+        return
+
+
+def update_env_file(env_path: Path, updates: dict[str, str]) -> None:
+    if not updates:
+        return
+    lines = env_path.read_text(encoding="utf-8").splitlines() if env_path.exists() else []
+    seen: set[str] = set()
+    next_lines: list[str] = []
+    for line in lines:
+        match = re.match(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=", line)
+        if match and match.group(1) in updates:
+            key = match.group(1)
+            next_lines.append(f"{key}={updates[key]}")
+            seen.add(key)
+        else:
+            next_lines.append(line)
+
+    missing = [key for key in updates if key not in seen]
+    if missing and next_lines and next_lines[-1].strip():
+        next_lines.append("")
+    for key in missing:
+        next_lines.append(f"{key}={updates[key]}")
+
+    env_path.write_text("\n".join(next_lines) + "\n", encoding="utf-8")
+
+
+def update_profile_token_fields(db_path: Path, profile: dict[str, Any] | None, updates: dict[str, Any]) -> None:
+    if not profile or not updates or not db_path.exists():
+        return
+    profile_id = profile.get("id")
+    if not profile_id:
+        return
+    with sqlite3.connect(db_path) as conn:
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(profiles)").fetchall()}
+        fields = {key: value for key, value in updates.items() if key in columns}
+        if not fields:
+            return
+        clause = ", ".join(f"{key}=?" for key in fields)
+        conn.execute(
+            f"UPDATE profiles SET {clause} WHERE id=?",
+            (*fields.values(), profile_id),
+        )
+        conn.commit()
+
+
+def token_error_message(response: requests.Response) -> str:
+    try:
+        data = response.json()
+    except Exception:
+        return response.text or f"HTTP {response.status_code}"
+    error = data.get("error") if isinstance(data, dict) else None
+    if isinstance(error, dict):
+        code = error.get("code")
+        message = error.get("message") or str(error)
+        return f"{message} (code={code})" if code else str(message)
+    return str(data)
+
+
+def refresh_long_lived_threads_token(access_token: str, timeout: int = 15) -> dict[str, Any]:
+    response = requests.get(
+        THREADS_REFRESH_URL,
+        params={"grant_type": "th_refresh_token", "access_token": access_token},
+        timeout=timeout,
+    )
+    if not response.ok:
+        raise RuntimeError(token_error_message(response))
+    data = response.json()
+    new_token = data.get("access_token") or access_token
+    expires_in = safe_int(data.get("expires_in"), 0)
+    expires_at = utc_now() + timedelta(seconds=expires_in) if expires_in > 0 else None
+    return {
+        "access_token": new_token,
+        "expires_in": expires_in,
+        "expires_at": iso_utc(expires_at) if expires_at else "",
+        "raw": data,
+    }
+
+
+def exchange_threads_token(access_token: str, app_secret: str, timeout: int = 15) -> dict[str, Any]:
+    if not app_secret:
+        raise ValueError("THREADS_APP_SECRET is required to exchange a short-lived token.")
+    response = requests.get(
+        THREADS_EXCHANGE_URL,
+        params={
+            "grant_type": "th_exchange_token",
+            "client_secret": app_secret,
+            "access_token": access_token,
+        },
+        timeout=timeout,
+    )
+    if not response.ok:
+        raise RuntimeError(token_error_message(response))
+    data = response.json()
+    new_token = data.get("access_token") or access_token
+    expires_in = safe_int(data.get("expires_in"), 0)
+    expires_at = utc_now() + timedelta(seconds=expires_in) if expires_in > 0 else None
+    return {
+        "access_token": new_token,
+        "expires_in": expires_in,
+        "expires_at": iso_utc(expires_at) if expires_at else "",
+        "raw": data,
+    }
+
+
+def token_expiry_from_sources(profile: dict[str, Any] | None) -> datetime | None:
+    env_value = os.getenv("THREADS_TOKEN_EXPIRES_AT", "")
+    profile_value = (profile or {}).get("threads_token_expires_at")
+    return parse_datetime_any(env_value) or parse_datetime_any(profile_value)
+
+
+def persist_refreshed_token(
+    credentials: ThreadsCredentials,
+    args: argparse.Namespace,
+    refreshed: dict[str, Any],
+    status: str,
+) -> None:
+    new_token = refreshed["access_token"]
+    expires_at = refreshed.get("expires_at") or ""
+    checked_at = iso_utc()
+    db_path = Path(args.threads_db_path)
+    profile_updates = {
+        "access_token": new_token,
+        "threads_token_expires_at": expires_at,
+        "threads_token_last_checked_at": checked_at,
+        "threads_token_status": status,
+        "threads_token_last_error": "",
+    }
+    update_profile_token_fields(db_path, credentials.profile, profile_updates)
+    if credentials.profile:
+        write_keyring_token(str(credentials.profile.get("name") or ""), new_token)
+        credentials.profile.update(profile_updates)
+
+    env_updates = {
+        "THREADS_ACCESS_TOKEN": new_token,
+        "THREADS_TOKEN_EXPIRES_AT": expires_at,
+        "THREADS_TOKEN_LAST_REFRESHED_AT": checked_at,
+        "THREADS_TOKEN_STATUS": status,
+    }
+    update_env_file(Path(args.env_path), env_updates)
+
+
+def ensure_threads_token_fresh(credentials: ThreadsCredentials, args: argparse.Namespace) -> ThreadsCredentials:
+    if not args.auto_refresh_token:
+        return credentials
+
+    expires_at = token_expiry_from_sources(credentials.profile)
+    refresh_window = timedelta(days=max(1, int(args.token_refresh_window_days)))
+    should_refresh = bool(args.force_token_refresh or expires_at is None)
+    if expires_at is not None:
+        should_refresh = expires_at <= utc_now() + refresh_window
+
+    if not should_refresh:
+        return credentials
+
+    try:
+        try:
+            refreshed = refresh_long_lived_threads_token(credentials.access_token)
+            status = "refreshed"
+        except Exception:
+            app_secret = (
+                args.app_secret
+                or os.getenv("THREADS_APP_SECRET", "")
+                or str((credentials.profile or {}).get("threads_app_secret") or "")
+            )
+            refreshed = exchange_threads_token(credentials.access_token, app_secret)
+            status = "exchanged"
+
+        credentials.access_token = refreshed["access_token"]
+        persist_refreshed_token(credentials, args, refreshed, status)
+        print(
+            "[token] Threads token "
+            f"{status}; expires_at={refreshed.get('expires_at') or 'unknown'}"
+        )
+        return credentials
+    except Exception as exc:
+        update_profile_token_fields(
+            Path(args.threads_db_path),
+            credentials.profile,
+            {
+                "threads_token_last_checked_at": iso_utc(),
+                "threads_token_status": "refresh_failed",
+                "threads_token_last_error": str(exc)[:500],
+            },
+        )
+        print(f"[warn] Threads token refresh failed; using existing token: {exc}", file=sys.stderr)
+        if args.require_token_refresh:
+            raise
+        return credentials
 
 
 def refresh_profile_daily_counts(db_path: Path, profile: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -714,6 +971,8 @@ def print_profiles(db_path: Path) -> None:
             f"posts={profile.get('daily_post_count')}/{profile.get('max_posts_per_day')} "
             f"jobs={profile.get('daily_job_count')}/{profile.get('max_jobs_per_day')} "
             f"last={profile.get('last_published_at')} "
+            f"token_status={profile.get('threads_token_status') or 'unknown'} "
+            f"token_expires={profile.get('threads_token_expires_at') or 'unknown'} "
             f"token={token_state}"
         )
 
@@ -774,6 +1033,21 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--profile-name", default=os.getenv("THREADS_PROFILE_NAME", ""))
     parser.add_argument("--user-id", default=os.getenv("THREADS_USER_ID", ""))
     parser.add_argument("--access-token", default=os.getenv("THREADS_ACCESS_TOKEN", ""))
+    parser.add_argument("--app-secret", default=os.getenv("THREADS_APP_SECRET", ""))
+    parser.add_argument("--env-path", default=os.getenv("THREADS_ENV_PATH", str(ROOT_DIR / ".env.local")))
+    parser.add_argument(
+        "--auto-refresh-token",
+        dest="auto_refresh_token",
+        action=argparse.BooleanOptionalAction,
+        default=os.getenv("THREADS_TOKEN_AUTO_REFRESH", "true").lower() not in {"0", "false", "no"},
+    )
+    parser.add_argument("--force-token-refresh", action="store_true")
+    parser.add_argument("--require-token-refresh", action="store_true")
+    parser.add_argument(
+        "--token-refresh-window-days",
+        type=int,
+        default=int(os.getenv("THREADS_TOKEN_REFRESH_WINDOW_DAYS", str(DEFAULT_TOKEN_REFRESH_WINDOW_DAYS))),
+    )
     parser.add_argument(
         "--threads-db-path",
         default=os.getenv("THREADS_AUTOMATOR_DB_PATH", str(DEFAULT_THREADS_DB_PATH)),
@@ -844,6 +1118,7 @@ def main() -> int:
             return 0
 
         credentials = resolve_credentials(args)
+        credentials = ensure_threads_token_fresh(credentials, args)
         required_units = PUBLISH_UNITS_PER_RUN
         ensure_profile_publish_allowed(
             credentials.profile,
