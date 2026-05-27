@@ -916,6 +916,50 @@ def get_threads_remote_quota(access_token: str) -> dict[str, Any] | None:
         return None
 
 
+def get_threads_me(access_token: str) -> dict[str, Any]:
+    response = requests.get(
+        f"{THREADS_GRAPH_BASE_URL}/me",
+        params={"fields": "id,username", "access_token": access_token},
+        timeout=15,
+    )
+    if not response.ok:
+        raise RuntimeError(f"Threads /me failed ({response.status_code}): {response.text[:500]}")
+    return response.json()
+
+
+def align_credentials_user_id(credentials: ThreadsCredentials, args: argparse.Namespace) -> ThreadsCredentials:
+    if not args.auto_detect_user_id:
+        return credentials
+
+    me = get_threads_me(credentials.access_token)
+    detected_user_id = clean_whitespace(me.get("id"))
+    if not detected_user_id:
+        return credentials
+
+    if detected_user_id != credentials.user_id:
+        print(
+            "[token] THREADS_USER_ID mismatch; "
+            f"using token /me id {detected_user_id} "
+            f"(@{me.get('username') or 'unknown'}) instead of {credentials.user_id}"
+        )
+        credentials.user_id = detected_user_id
+
+        env_updates = {
+            "THREADS_USER_ID": detected_user_id,
+            "THREADS_USERNAME": clean_whitespace(me.get("username")),
+        }
+        update_env_file(Path(args.env_path), env_updates)
+
+        if credentials.source.startswith(("profile", "profile-db", "keyring")):
+            update_profile_token_fields(
+                Path(args.threads_db_path),
+                credentials.profile,
+                {"user_id": detected_user_id},
+            )
+
+    return credentials
+
+
 def ensure_remote_quota_available(quota: dict[str, Any] | None) -> None:
     if not quota:
         return
@@ -1044,6 +1088,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--force-token-refresh", action="store_true")
     parser.add_argument("--require-token-refresh", action="store_true")
     parser.add_argument(
+        "--auto-detect-user-id",
+        dest="auto_detect_user_id",
+        action=argparse.BooleanOptionalAction,
+        default=os.getenv("THREADS_AUTO_DETECT_USER_ID", "true").lower() not in {"0", "false", "no"},
+    )
+    parser.add_argument(
         "--token-refresh-window-days",
         type=int,
         default=int(os.getenv("THREADS_TOKEN_REFRESH_WINDOW_DAYS", str(DEFAULT_TOKEN_REFRESH_WINDOW_DAYS))),
@@ -1119,6 +1169,7 @@ def main() -> int:
 
         credentials = resolve_credentials(args)
         credentials = ensure_threads_token_fresh(credentials, args)
+        credentials = align_credentials_user_id(credentials, args)
         required_units = PUBLISH_UNITS_PER_RUN
         ensure_profile_publish_allowed(
             credentials.profile,
