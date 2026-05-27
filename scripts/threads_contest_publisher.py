@@ -605,9 +605,11 @@ def exchange_threads_token(access_token: str, app_secret: str, timeout: int = 15
     }
 
 
-def token_expiry_from_sources(profile: dict[str, Any] | None) -> datetime | None:
+def token_expiry_from_sources(credentials: ThreadsCredentials) -> datetime | None:
     env_value = os.getenv("THREADS_TOKEN_EXPIRES_AT", "")
-    profile_value = (profile or {}).get("threads_token_expires_at")
+    if credentials.source.startswith("env"):
+        return parse_datetime_any(env_value)
+    profile_value = (credentials.profile or {}).get("threads_token_expires_at")
     return parse_datetime_any(env_value) or parse_datetime_any(profile_value)
 
 
@@ -628,8 +630,9 @@ def persist_refreshed_token(
         "threads_token_status": status,
         "threads_token_last_error": "",
     }
-    update_profile_token_fields(db_path, credentials.profile, profile_updates)
-    if credentials.profile:
+    if not credentials.source.startswith("env"):
+        update_profile_token_fields(db_path, credentials.profile, profile_updates)
+    if credentials.profile and not credentials.source.startswith("env"):
         write_keyring_token(str(credentials.profile.get("name") or ""), new_token)
         credentials.profile.update(profile_updates)
 
@@ -646,7 +649,7 @@ def ensure_threads_token_fresh(credentials: ThreadsCredentials, args: argparse.N
     if not args.auto_refresh_token:
         return credentials
 
-    expires_at = token_expiry_from_sources(credentials.profile)
+    expires_at = token_expiry_from_sources(credentials)
     refresh_window = timedelta(days=max(1, int(args.token_refresh_window_days)))
     should_refresh = bool(args.force_token_refresh or expires_at is None)
     if expires_at is not None:
