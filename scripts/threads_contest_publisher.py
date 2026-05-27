@@ -773,6 +773,10 @@ def get_profile_daily_count(profile: dict[str, Any] | None) -> int:
     return safe_int(profile.get("daily_post_count"), 0)
 
 
+def should_use_profile_counter(credentials: ThreadsCredentials) -> bool:
+    return not credentials.source.startswith("env")
+
+
 def ensure_profile_publish_allowed(
     profile: dict[str, Any] | None,
     ignore_limit: bool,
@@ -1171,8 +1175,9 @@ def main() -> int:
         credentials = ensure_threads_token_fresh(credentials, args)
         credentials = align_credentials_user_id(credentials, args)
         required_units = PUBLISH_UNITS_PER_RUN
+        quota_profile = credentials.profile if should_use_profile_counter(credentials) else None
         ensure_profile_publish_allowed(
-            credentials.profile,
+            quota_profile,
             args.ignore_profile_limit,
             required_units,
             args.daily_limit,
@@ -1183,9 +1188,11 @@ def main() -> int:
 
         publisher = ThreadsGraphPublisher(credentials.access_token, credentials.user_id)
         media_id = publisher.publish_post(body)
-        increment_profile_count(db_path, credentials.profile, units=1)
+        if should_use_profile_counter(credentials):
+            increment_profile_count(db_path, credentials.profile, units=1)
         reply_id = publisher.publish_reply(media_id, comment)
-        increment_profile_count(db_path, credentials.profile, units=1)
+        if should_use_profile_counter(credentials):
+            increment_profile_count(db_path, credentials.profile, units=1)
 
         record = build_history_record(
             audience=audience,
@@ -1208,7 +1215,7 @@ def main() -> int:
             f"대상: {audience}\n"
             f"공모전: {len(selected)}개\n"
             f"링크: {short_url}\n"
-            f"local_daily_limit: {effective_daily_limit(credentials.profile, args.daily_limit)}\n"
+            f"local_daily_limit: {effective_daily_limit(quota_profile, args.daily_limit)}\n"
             f"publish_units: {required_units}\n"
             f"credential_source: {credentials.source}"
         )

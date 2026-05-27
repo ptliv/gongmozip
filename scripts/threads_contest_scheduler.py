@@ -93,15 +93,16 @@ def quota_snapshot(args: argparse.Namespace) -> dict[str, Any]:
     profile_name = args.profile_name or os.getenv("THREADS_PROFILE_NAME", "")
     profile = find_profile(db_path, profile_name)
     profile = refresh_profile_daily_counts(db_path, profile)
+    env_token_present = bool(os.getenv("THREADS_ACCESS_TOKEN", "").strip())
 
-    if profile:
+    if profile and not env_token_present:
         used = get_profile_daily_count(profile)
         limit = effective_daily_limit(profile, args.daily_limit)
         source = f"profile:{profile.get('name')}"
     else:
         used = count_today_history_publish_units(load_history(Path(args.history_path)))
         limit = safe_limit(args.daily_limit)
-        source = "local-history"
+        source = "env-history" if env_token_present else "local-history"
 
     return {
         "used": used,
