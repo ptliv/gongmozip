@@ -10,7 +10,7 @@ interface Props {
   params: { category: string };
 }
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 function getKnownCategoryName(categorySlug: string): string | null {
   const decoded = decodeURIComponent(categorySlug);
@@ -44,7 +44,7 @@ export default async function CategoryPage({ params }: Props) {
   const known = getKnownCategoryName(params.category);
   const label = known || decodeURIComponent(params.category) || "카테고리";
 
-  const payload = await getCategoryContestsPayload(params.category).catch((error: unknown) => {
+  const payload = await getCategoryContestsPayload(params.category, 12).catch((error: unknown) => {
     console.error("[CategoryPage] getCategoryContestsPayload failed:", error);
     return { ok: false, category: label, items: [] };
   });

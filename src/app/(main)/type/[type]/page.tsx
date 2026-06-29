@@ -8,7 +8,7 @@ import { ContestGrid } from "@/components/ui/ContestGrid";
 import { canonicalUrl } from "@/lib/seo";
 import { NOINDEX_FOLLOW_ROBOTS } from "@/lib/indexing";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 interface Props {
   params: { type: string };
@@ -38,7 +38,7 @@ export default async function TypePage({ params }: Props) {
   const type = getType(params.type);
   if (!type) notFound();
 
-  const contests = await fetchContests({ type, verified_only: true }).catch((e: unknown) => {
+  const contests = await fetchContests({ type, verified_only: true, limit: 12 }).catch((e: unknown) => {
     console.error("[TypePage] fetchContests 실패:", e);
     return [];
   });

@@ -6,7 +6,7 @@ import { ContestGrid } from "@/components/ui/ContestGrid";
 import { canonicalUrl } from "@/lib/seo";
 import { NOINDEX_FOLLOW_ROBOTS } from "@/lib/indexing";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "최신 공고",
@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default async function LatestPage() {
-  const contests = await fetchContests({ verified_only: true }).catch((e: unknown) => {
+  const contests = await fetchContests({ verified_only: true, limit: 12 }).catch((e: unknown) => {
     console.error("[LatestPage] fetchContests 실패:", e);
     return [];
   });

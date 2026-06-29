@@ -322,24 +322,24 @@ export async function getRelatedContestsPayload(
   return { ok: true, items };
 }
 
-export async function getDeadlineContestsPayload(limit = 200): Promise<{
+export async function getDeadlineContestsPayload(limit = 12): Promise<{
   ok: boolean;
   items: ContestDetailPayload[];
 }> {
-  const safeLimit = Math.max(1, Math.min(Number(limit) || 200, 1000));
-  const contests = await fetchOpenContests(Math.max(400, safeLimit));
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 12, 36));
+  const contests = await fetchOpenContests(Math.max(72, safeLimit * 2));
   return {
     ok: true,
     items: contests.sort(sortByDeadlineAsc).slice(0, safeLimit),
   };
 }
 
-export async function getDeadline7DaysContestsPayload(limit = 200): Promise<{
+export async function getDeadline7DaysContestsPayload(limit = 12): Promise<{
   ok: boolean;
   items: ContestDetailPayload[];
 }> {
-  const safeLimit = Math.max(1, Math.min(Number(limit) || 200, 1000));
-  const contests = await fetchOpenContests(2000);
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 12, 36));
+  const contests = await fetchOpenContests(Math.max(96, safeLimit * 4));
   const items = contests
     .filter((item) => item.status === "ongoing")
     .filter((item) => isWithinDays(item.apply_end_at, 7))
@@ -348,12 +348,13 @@ export async function getDeadline7DaysContestsPayload(limit = 200): Promise<{
   return { ok: true, items };
 }
 
-export async function getCategoryContestsPayload(categorySlug: string): Promise<{
+export async function getCategoryContestsPayload(categorySlug: string, limit = 12): Promise<{
   ok: boolean;
   category: string;
   items: ContestDetailPayload[];
 }> {
-  const contests = await fetchOpenContests(2000);
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 12, 36));
+  const contests = await fetchOpenContests(Math.max(96, safeLimit * 3));
   const normalizedParam = slugifyContestTitle(decodeURIComponent(categorySlug));
   const items = contests
     .filter((item) => {
@@ -361,7 +362,8 @@ export async function getCategoryContestsPayload(categorySlug: string): Promise<
       const typeKey = slugifyContestTitle(item.type);
       return categoryKey === normalizedParam || typeKey === normalizedParam;
     })
-    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at));
+    .sort((a, b) => Date.parse(b.created_at) - Date.parse(a.created_at))
+    .slice(0, safeLimit);
 
   return {
     ok: true,
@@ -370,13 +372,13 @@ export async function getCategoryContestsPayload(categorySlug: string): Promise<
   };
 }
 
-export async function getFieldContestsPayload(fieldSlug: string, limit = 500): Promise<{
+export async function getFieldContestsPayload(fieldSlug: string, limit = 12): Promise<{
   ok: boolean;
   field: string;
   items: ContestDetailPayload[];
 }> {
-  const safeLimit = Math.max(1, Math.min(Number(limit) || 500, 2000));
-  const contests = await fetchOpenContests(2000);
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 12, 36));
+  const contests = await fetchOpenContests(Math.max(96, safeLimit * 3));
   const normalizedSlug = slugifyContestTitle(decodeURIComponent(fieldSlug));
   const items = contests
     .filter((item) => slugifyContestTitle(item.normalized_field) === normalizedSlug)
@@ -386,13 +388,13 @@ export async function getFieldContestsPayload(fieldSlug: string, limit = 500): P
   return { ok: true, field, items };
 }
 
-export async function getTargetContestsPayload(targetSlug: string, limit = 500): Promise<{
+export async function getTargetContestsPayload(targetSlug: string, limit = 12): Promise<{
   ok: boolean;
   target: string;
   items: ContestDetailPayload[];
 }> {
-  const safeLimit = Math.max(1, Math.min(Number(limit) || 500, 2000));
-  const contests = await fetchOpenContests(2000);
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 12, 36));
+  const contests = await fetchOpenContests(Math.max(96, safeLimit * 3));
   const normalizedSlug = slugifyContestTitle(decodeURIComponent(targetSlug));
   const items = contests
     .filter((item) =>
@@ -408,13 +410,13 @@ export async function getTargetContestsPayload(targetSlug: string, limit = 500):
   return { ok: true, target, items };
 }
 
-export async function getHostContestsPayload(hostSlug: string, limit = 500): Promise<{
+export async function getHostContestsPayload(hostSlug: string, limit = 12): Promise<{
   ok: boolean;
   host: string;
   items: ContestDetailPayload[];
 }> {
-  const safeLimit = Math.max(1, Math.min(Number(limit) || 500, 2000));
-  const contests = await fetchOpenContests(2000);
+  const safeLimit = Math.max(1, Math.min(Number(limit) || 12, 36));
+  const contests = await fetchOpenContests(Math.max(96, safeLimit * 3));
   const normalizedSlug = slugifyContestTitle(decodeURIComponent(hostSlug));
   const items = contests
     .filter((item) => item.host_slug === normalizedSlug)

@@ -106,3 +106,70 @@ test("prize display formats bare won amount and removes unitless small total", (
   assert.equal(info.amountLabel, "100만원");
   assert.equal(info.text, "최고상: 100만원");
 });
+
+test("noindex collection pages cap server rendered contest grids", () => {
+  const files = [
+    ["deadline", "src/app/(main)/deadline/page.tsx", /getDeadlineContestsPayload\(12\)/],
+    [
+      "deadline 7 days",
+      "src/app/(main)/deadline/7days/page.tsx",
+      /getDeadline7DaysContestsPayload\(12\)/,
+    ],
+    [
+      "latest collection",
+      "src/app/(main)/latest/page.tsx",
+      /fetchContests\(\{\s*verified_only:\s*true,\s*limit:\s*12\s*\}\)/,
+    ],
+    [
+      "type collection",
+      "src/app/(main)/type/[type]/page.tsx",
+      /fetchContests\(\{\s*type,\s*verified_only:\s*true,\s*limit:\s*12\s*\}\)/,
+    ],
+    [
+      "field facet",
+      "src/app/(main)/field/[field]/page.tsx",
+      /getFieldContestsPayload\(params\.field,\s*12\)/,
+    ],
+    [
+      "category facet",
+      "src/app/(main)/categories/[category]/page.tsx",
+      /getCategoryContestsPayload\(params\.category,\s*12\)/,
+    ],
+    [
+      "target facet",
+      "src/app/(main)/target/[target]/page.tsx",
+      /getTargetContestsPayload\(params\.target,\s*12\)/,
+    ],
+    [
+      "host facet",
+      "src/app/(main)/host/[host]/page.tsx",
+      /getHostContestsPayload\(params\.host,\s*12\)/,
+    ],
+  ];
+
+  for (const [label, relativePath, pattern] of files) {
+    const source = fs.readFileSync(path.join(rootDir, relativePath), "utf8");
+    assert.match(source, pattern, `${label} page should keep SSR contest grids capped`);
+  }
+});
+
+test("public contest pages remain cacheable instead of forced dynamic", () => {
+  const files = [
+    "src/app/(main)/contests/page.tsx",
+    "src/app/(main)/contests/[slug]/page.tsx",
+    "src/app/(main)/deadline/page.tsx",
+    "src/app/(main)/deadline/7days/page.tsx",
+    "src/app/(main)/latest/page.tsx",
+    "src/app/(main)/categories/[category]/page.tsx",
+    "src/app/(main)/field/[field]/page.tsx",
+    "src/app/(main)/type/[type]/page.tsx",
+    "src/app/(main)/target/[target]/page.tsx",
+    "src/app/(main)/host/[host]/page.tsx",
+  ];
+
+  for (const relativePath of files) {
+    const source = fs.readFileSync(path.join(rootDir, relativePath), "utf8");
+    assert.match(source, /export const revalidate = 300/);
+    assert.doesNotMatch(source, /force-dynamic/);
+  }
+});

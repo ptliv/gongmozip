@@ -4,17 +4,15 @@ import { BarChart3, Clock3, FileSearch, ShieldCheck } from "lucide-react";
 import { ContestsPageClient } from "@/components/contest/ContestsPageClient";
 import { StructuredData } from "@/components/seo/StructuredData";
 import { getDaysUntilDeadline } from "@/lib/date";
-import { NOINDEX_FOLLOW_ROBOTS } from "@/lib/indexing";
 import { canonicalUrl } from "@/lib/seo";
 import { fetchContests } from "@/lib/supabase/contests";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export function generateMetadata(): Metadata {
   return {
     title: "공고 탐색",
     description: "공모전, 대외활동, 인턴십 공고를 마감일, 혜택, 준비 난이도 기준으로 검토하세요.",
-    robots: NOINDEX_FOLLOW_ROBOTS,
     alternates: {
       canonical: canonicalUrl("/contests"),
     },
@@ -22,7 +20,7 @@ export function generateMetadata(): Metadata {
 }
 
 export default async function ContestsPage() {
-  const contests = await fetchContests({ verified_only: true, limit: 180 }).catch((e: unknown) => {
+  const contests = await fetchContests({ verified_only: true, limit: 120 }).catch((e: unknown) => {
     console.error("[ContestsPage] fetchContests 실패:", e);
     return [];
   });

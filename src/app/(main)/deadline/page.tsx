@@ -5,7 +5,7 @@ import { getDeadlineContestsPayload } from "@/lib/supabase/public-contest-querie
 import { canonicalUrl } from "@/lib/seo";
 import { NOINDEX_FOLLOW_ROBOTS } from "@/lib/indexing";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export const metadata: Metadata = {
   title: "마감임박 공고",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 };
 
 export default async function DeadlinePage() {
-  const deadlinePayload = await getDeadlineContestsPayload(200).catch((error: unknown) => {
+  const deadlinePayload = await getDeadlineContestsPayload(12).catch((error: unknown) => {
     console.error("[DeadlinePage] getDeadlineContestsPayload failed:", error);
     return { ok: false, items: [] };
   });

@@ -4,7 +4,7 @@ import { getDeadline7DaysContestsPayload } from "@/lib/supabase/public-contest-q
 import { canonicalUrl } from "@/lib/seo";
 import { NOINDEX_FOLLOW_ROBOTS } from "@/lib/indexing";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 export function generateMetadata(): Metadata {
   return {
@@ -18,7 +18,7 @@ export function generateMetadata(): Metadata {
 }
 
 export default async function Deadline7DaysPage() {
-  const payload = await getDeadline7DaysContestsPayload(300).catch((error: unknown) => {
+  const payload = await getDeadline7DaysContestsPayload(12).catch((error: unknown) => {
     console.error("[Deadline7DaysPage] getDeadline7DaysContestsPayload failed:", error);
     return { ok: false, items: [] };
   });

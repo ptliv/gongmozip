@@ -8,10 +8,11 @@ Checks:
   2) robots.txt includes sitemap
   3) robots.txt disallow /admin
   4) sitemap.xml reachable
-  5) sitemap includes /deadline
-  6) sitemap excludes /deadline-soon
-  7) /contests canonical points to production domain
-  8) /contests/<slug> canonical points to production domain + same slug path
+  5) sitemap includes /contests
+  6) sitemap excludes noindex deadline routes
+  7) /contests is indexable (not noindex)
+  8) /contests canonical points to production domain
+  9) /contests/<slug> canonical points to production domain + same slug path
 
 Output:
   - stdout summary
@@ -164,6 +165,18 @@ def parse_canonical_href(html: str) -> str | None:
     return None
 
 
+def has_noindex_robots(html: str) -> bool:
+    soup = BeautifulSoup(html or "", "lxml")
+    for tag in soup.find_all("meta"):
+        name = str(tag.get("name") or "").strip().lower()
+        if name != "robots":
+            continue
+        content = str(tag.get("content") or "").strip().lower()
+        if "noindex" in content:
+            return True
+    return False
+
+
 def extract_prefixed_paths_from_html(html: str, prefix: str) -> list[str]:
     soup = BeautifulSoup(html or "", "lxml")
     out: list[str] = []
@@ -299,19 +312,32 @@ def main() -> int:
     if sitemap_err:
         errors.append(f"sitemap parse failed: {sitemap_err}")
     sitemap_set = set(sitemap_paths)
-    checks["deadline_in_sitemap"] = "/deadline" in sitemap_set
-    checks["deadline_soon_excluded"] = (
-        "/deadline-soon" not in sitemap_set and "/deadline-soon/" not in sitemap_set
+    checks["contests_in_sitemap"] = "/contests" in sitemap_set
+    checks["noindex_deadline_excluded"] = (
+        "/deadline" not in sitemap_set
+        and "/deadline/" not in sitemap_set
+        and "/deadline/7days" not in sitemap_set
+        and "/deadline/7days/" not in sitemap_set
+        and "/deadline-soon" not in sitemap_set
+        and "/deadline-soon/" not in sitemap_set
     )
 
     contests_url = build_url(base_url, "/contests")
     contests_resp, contests_err = fetch_url(session, contests_url, timeout)
     list_canonical = None
+    list_noindex = False
     if contests_err:
         errors.append(f"/contests request failed: {contests_err}")
     if contests_resp is not None and contests_resp.status_code == 200:
-        list_canonical = parse_canonical_href(contests_resp.text or "")
+        contests_html = contests_resp.text or ""
+        list_canonical = parse_canonical_href(contests_html)
+        list_noindex = has_noindex_robots(contests_html)
     expected_list_canonical = f"{base_url}/contests"
+    checks["list_not_noindex"] = bool(
+        contests_resp is not None
+        and contests_resp.status_code == 200
+        and not list_noindex
+    )
     checks["list_canonical_ok"] = bool(
         list_canonical and list_canonical.rstrip("/") == expected_list_canonical.rstrip("/")
     )
@@ -384,8 +410,9 @@ def main() -> int:
         "robots_has_sitemap",
         "robots_disallow_admin",
         "sitemap_accessible",
-        "deadline_in_sitemap",
-        "deadline_soon_excluded",
+        "contests_in_sitemap",
+        "noindex_deadline_excluded",
+        "list_not_noindex",
         "list_canonical_ok",
         "detail_canonical_ok",
     ):

@@ -10,7 +10,7 @@ interface Props {
   params: { target: string };
 }
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 function getFallbackLabel(targetSlug: string): string {
   return decodeURIComponent(targetSlug) || "대상";
@@ -29,7 +29,7 @@ export function generateMetadata({ params }: Props): Metadata {
 }
 
 export default async function TargetPage({ params }: Props) {
-  const payload = await getTargetContestsPayload(params.target, 500).catch((error: unknown) => {
+  const payload = await getTargetContestsPayload(params.target, 12).catch((error: unknown) => {
     console.error("[TargetPage] getTargetContestsPayload failed:", error);
     return {
       ok: false,

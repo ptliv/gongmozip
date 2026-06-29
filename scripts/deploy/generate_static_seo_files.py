@@ -188,6 +188,7 @@ def write_sitemap() -> None:
     now = datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
     urls = [
         sitemap_url(f"{BASE_URL}/", now, "daily", "1.0"),
+        sitemap_url(f"{BASE_URL}/contests", now, "daily", "0.8"),
         sitemap_url(f"{BASE_URL}/guides", now, "weekly", "0.75"),
         sitemap_url(f"{BASE_URL}/about", now, "monthly", "0.5"),
         sitemap_url(f"{BASE_URL}/privacy", now, "monthly", "0.4"),

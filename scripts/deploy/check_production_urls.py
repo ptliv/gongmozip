@@ -4,9 +4,9 @@ check_production_urls.py
 Production URL health checker for the Next.js + Supabase deployment.
 
 Checks:
-  - fixed routes: /, /contests, /deadline, /deadline/7days, /bookmarks
+  - fixed routes: /, /contests, /privacy, /terms, /contact, /about
   - infra routes: /sitemap.xml, /robots.txt
-  - dynamic samples: /contests/<slug>, /field/<field>, /target/<target>, /host/<host>
+  - dynamic samples: /contests/<slug>
 
 Output:
   - stdout summary
@@ -20,6 +20,7 @@ import json
 import os
 import re
 import sys
+import time
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
@@ -43,6 +44,9 @@ from utils import logger  # noqa: E402
 
 
 DEFAULT_TIMEOUT = 15
+MAX_FETCH_ATTEMPTS = 3
+RETRY_SLEEP_SECONDS = 0.6
+RETRY_STATUS_CODES = {408, 425, 429, 500, 502, 503, 504}
 DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (compatible; GongmozipProductionChecker/1.0; +https://gongmozip.com)"
 )
@@ -50,9 +54,10 @@ DEFAULT_USER_AGENT = (
 STATIC_PATHS = [
     "/",
     "/contests",
-    "/deadline",
-    "/deadline/7days",
-    "/bookmarks",
+    "/privacy",
+    "/terms",
+    "/contact",
+    "/about",
     "/sitemap.xml",
     "/robots.txt",
 ]
@@ -173,11 +178,29 @@ def fetch_url(
     url: str,
     timeout: int,
 ) -> tuple[requests.Response | None, str | None]:
-    try:
-        response = session.get(url, timeout=timeout, allow_redirects=True)
-        return response, None
-    except requests.RequestException as exc:
-        return None, str(exc)
+    last_error: str | None = None
+    last_response: requests.Response | None = None
+    for attempt in range(MAX_FETCH_ATTEMPTS):
+        try:
+            response = session.get(url, timeout=timeout, allow_redirects=True)
+            last_response = response
+            if response.status_code not in RETRY_STATUS_CODES:
+                return response, None
+            last_error = f"status={response.status_code}"
+        except requests.RequestException as exc:
+            last_error = str(exc)
+            last_response = None
+        if attempt < MAX_FETCH_ATTEMPTS - 1:
+            time.sleep(RETRY_SLEEP_SECONDS * (attempt + 1))
+    return last_response, None if last_response is not None else last_error
+
+
+def should_retry_html_result(result: UrlCheckResult) -> bool:
+    if result.status_code in RETRY_STATUS_CODES:
+        return True
+    if not result.is_html or result.status_code != 200:
+        return False
+    return not bool(result.title_exists) or not bool(result.canonical_exists)
 
 
 def parse_sitemap_locations(xml_text: str) -> list[str]:
@@ -395,12 +418,9 @@ def build_dynamic_path_candidates(
 ) -> dict[str, list[str]]:
     out: dict[str, list[str]] = {
         "contest": collect_prefixed_paths(sitemap_paths, "/contests/", max_count=80),
-        "field": collect_prefixed_paths(sitemap_paths, "/field/", max_count=30),
-        "target": collect_prefixed_paths(sitemap_paths, "/target/", max_count=30),
-        "host": collect_prefixed_paths(sitemap_paths, "/host/", max_count=30),
     }
 
-    for key in ("contest", "field", "target", "host"):
+    for key in ("contest",):
         if home_paths.get(key) and home_paths[key] not in out[key]:
             out[key].append(home_paths[key])
         if db_paths.get(key) and db_paths[key] not in out[key]:
@@ -447,64 +467,77 @@ def check_single_url(
     timeout: int,
 ) -> UrlCheckResult:
     request_url = build_url(base_url, path)
-    response, err = fetch_url(session, request_url, timeout)
-    if err or response is None:
-        return UrlCheckResult(
-            path=path,
-            request_url=request_url,
-            final_url=None,
-            status_code=None,
-            redirected=False,
-            is_html=False,
-            title_exists=None,
-            canonical_exists=None,
-            canonical_href=None,
-            canonical_base_match=None,
-            has_fatal_error_marker=False,
-            pass_status=False,
-            error=err or "request failed",
-        )
+    last_result: UrlCheckResult | None = None
+    for attempt in range(MAX_FETCH_ATTEMPTS):
+        response, err = fetch_url(session, request_url, timeout)
+        if err or response is None:
+            last_result = UrlCheckResult(
+                path=path,
+                request_url=request_url,
+                final_url=None,
+                status_code=None,
+                redirected=False,
+                is_html=False,
+                title_exists=None,
+                canonical_exists=None,
+                canonical_href=None,
+                canonical_base_match=None,
+                has_fatal_error_marker=False,
+                pass_status=False,
+                error=err or "request failed",
+            )
+        else:
+            final_url = response.url
+            redirected = final_url.rstrip("/") != request_url.rstrip("/")
+            status_code = response.status_code
+            is_html = is_html_response(path, response)
+            title_exists: bool | None = None
+            canonical_exists: bool | None = None
+            canonical_href: str | None = None
+            canonical_base_match: bool | None = None
 
-    final_url = response.url
-    redirected = final_url.rstrip("/") != request_url.rstrip("/")
-    status_code = response.status_code
-    is_html = is_html_response(path, response)
-    title_exists: bool | None = None
-    canonical_exists: bool | None = None
-    canonical_href: str | None = None
-    canonical_base_match: bool | None = None
+            if is_html:
+                soup = BeautifulSoup(response.text or "", "lxml")
+                title_exists = bool(
+                    soup.title and (soup.title.get_text(strip=True) or "").strip()
+                )
+                canonical_href = get_canonical_href(soup)
+                canonical_exists = bool(canonical_href)
+                canonical_base_match = (
+                    canonical_href.startswith(base_url) if canonical_href else False
+                )
 
-    if is_html:
-        soup = BeautifulSoup(response.text or "", "lxml")
-        title_exists = bool(soup.title and (soup.title.get_text(strip=True) or "").strip())
-        canonical_href = get_canonical_href(soup)
-        canonical_exists = bool(canonical_href)
-        canonical_base_match = (
-            canonical_href.startswith(base_url) if canonical_href else False
-        )
+            has_fatal = detect_fatal_error_marker(response.text or "")
+            pass_status = (
+                status_code == 200
+                and not has_fatal
+                and (not is_html or bool(title_exists))
+            )
 
-    has_fatal = detect_fatal_error_marker(response.text or "")
-    pass_status = (
-        status_code == 200
-        and not has_fatal
-        and (not is_html or bool(title_exists))
-    )
+            last_result = UrlCheckResult(
+                path=path,
+                request_url=request_url,
+                final_url=final_url,
+                status_code=status_code,
+                redirected=redirected,
+                is_html=is_html,
+                title_exists=title_exists,
+                canonical_exists=canonical_exists,
+                canonical_href=canonical_href,
+                canonical_base_match=canonical_base_match,
+                has_fatal_error_marker=has_fatal,
+                pass_status=pass_status,
+                error=None,
+            )
 
-    return UrlCheckResult(
-        path=path,
-        request_url=request_url,
-        final_url=final_url,
-        status_code=status_code,
-        redirected=redirected,
-        is_html=is_html,
-        title_exists=title_exists,
-        canonical_exists=canonical_exists,
-        canonical_href=canonical_href,
-        canonical_base_match=canonical_base_match,
-        has_fatal_error_marker=has_fatal,
-        pass_status=pass_status,
-        error=None,
-    )
+        if last_result is not None and not should_retry_html_result(last_result):
+            return last_result
+        if attempt < MAX_FETCH_ATTEMPTS - 1:
+            time.sleep(RETRY_SLEEP_SECONDS * (attempt + 1))
+
+    if last_result is None:
+        raise RuntimeError("unreachable: production URL check produced no result")
+    return last_result
 
 
 def write_debug_outputs(
@@ -583,10 +616,10 @@ def print_summary(
     print(f"  robots_ok: {'PASS' if seo_summary['robots_ok'] else 'FAIL'}")
     print(f"  sitemap_ok: {'PASS' if seo_summary['sitemap_ok'] else 'FAIL'}")
     print(f"  canonical_ok: {'PASS' if seo_summary['canonical_ok'] else 'FAIL'}")
-    print(f"  deadline_in_sitemap: {'PASS' if seo_summary['deadline_in_sitemap'] else 'FAIL'}")
+    print(f"  contests_in_sitemap: {'PASS' if seo_summary['contests_in_sitemap'] else 'FAIL'}")
     print(
-        f"  deadline_soon_excluded: "
-        f"{'PASS' if seo_summary['deadline_soon_excluded'] else 'FAIL'}"
+        f"  noindex_deadline_excluded: "
+        f"{'PASS' if seo_summary['noindex_deadline_excluded'] else 'FAIL'}"
     )
     print("failures:")
     print(f"  count={len(failures)}")
@@ -633,7 +666,7 @@ def main() -> int:
     logger.info(f"[prod-check] dynamic selected={dynamic_paths}")
 
     check_paths = list(STATIC_PATHS)
-    for key in ("field", "target", "host", "contest"):
+    for key in ("contest",):
         path = dynamic_paths.get(key)
         if path and path not in check_paths:
             check_paths.append(path)
@@ -656,9 +689,6 @@ def main() -> int:
 
     # Ensure required dynamic checks are represented.
     for required_key, prefix in (
-        ("field", "/field/..."),
-        ("target", "/target/..."),
-        ("host", "/host/..."),
         ("contest", "/contests/..."),
     ):
         if not dynamic_paths.get(required_key):
@@ -679,8 +709,12 @@ def main() -> int:
         "sitemap_ok": any(r.path == "/sitemap.xml" and r.status_code == 200 for r in results)
         and sitemap_ok,
         "canonical_ok": canonical_ok,
-        "deadline_in_sitemap": "/deadline" in path_set,
-        "deadline_soon_excluded": "/deadline-soon" not in path_set
+        "contests_in_sitemap": "/contests" in path_set,
+        "noindex_deadline_excluded": "/deadline" not in path_set
+        and "/deadline/" not in path_set
+        and "/deadline/7days" not in path_set
+        and "/deadline/7days/" not in path_set
+        and "/deadline-soon" not in path_set
         and "/deadline-soon/" not in path_set,
     }
 
@@ -695,9 +729,6 @@ def main() -> int:
             url_lines.append((path, None, False))
 
     for key, placeholder in (
-        ("field", "/field/..."),
-        ("target", "/target/..."),
-        ("host", "/host/..."),
         ("contest", "/contests/..."),
     ):
         actual = dynamic_paths.get(key)

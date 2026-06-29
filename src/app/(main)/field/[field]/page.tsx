@@ -10,7 +10,7 @@ interface Props {
   params: { field: string };
 }
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 function getFallbackLabel(fieldSlug: string): string {
   return decodeURIComponent(fieldSlug) || "분야";
@@ -29,7 +29,7 @@ export function generateMetadata({ params }: Props): Metadata {
 }
 
 export default async function FieldPage({ params }: Props) {
-  const payload = await getFieldContestsPayload(params.field, 500).catch((error: unknown) => {
+  const payload = await getFieldContestsPayload(params.field, 12).catch((error: unknown) => {
     console.error("[FieldPage] getFieldContestsPayload failed:", error);
     return {
       ok: false,

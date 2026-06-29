@@ -10,7 +10,7 @@ interface Props {
   params: { host: string };
 }
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 function getFallbackLabel(hostSlug: string): string {
   return decodeURIComponent(hostSlug) || "주최";
@@ -29,7 +29,7 @@ export function generateMetadata({ params }: Props): Metadata {
 }
 
 export default async function HostPage({ params }: Props) {
-  const payload = await getHostContestsPayload(params.host, 500).catch((error: unknown) => {
+  const payload = await getHostContestsPayload(params.host, 12).catch((error: unknown) => {
     console.error("[HostPage] getHostContestsPayload failed:", error);
     return {
       ok: false,
