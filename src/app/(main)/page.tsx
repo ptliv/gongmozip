@@ -60,12 +60,12 @@ function getHomeFacetOptions(
 }
 
 export default async function HomePage() {
-  const allContests = await fetchContests({ verified_only: true }).catch((e: unknown) => {
+  const allContests = await fetchContests({ verified_only: true, limit: 120 }).catch((e: unknown) => {
     console.error("[HomePage] fetchContests 실패:", e);
     return [];
   });
   const deadlineSoonContests = getDeadlineSoonContests(allContests);
-  const latestContests = getLatestContests(allContests, 6);
+  const latestContests = getLatestContests(allContests, 3);
   const prizeSummary = summarizePrizePool(allContests);
   const facets = getHomeFacetOptions(allContests, {
     fieldLimit: 6,

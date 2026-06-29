@@ -2,6 +2,7 @@ import { createServerClient } from "@/lib/supabase/server";
 import type { Contest } from "@/types/contest";
 import type { ContestRow } from "@/types/database";
 import { fetchContestBySlug, isPublicContest, normalizeContestRow } from "@/lib/supabase/contests";
+import { dedupePublicContests } from "@/lib/contest-dedupe";
 import { slugifyContestTitle } from "@/lib/slug";
 import { buildContestSummary, cleanContestText } from "@/lib/contest-text";
 
@@ -247,11 +248,12 @@ async function fetchOpenContests(limit = 2000): Promise<ContestDetailPayload[]> 
     throw new Error(`[fetchOpenContests] ${error.message}`);
   }
 
-  return ((data ?? []) as ContestRow[])
+  const contests = ((data ?? []) as ContestRow[])
     .map(normalizeContestRow)
     .filter(isPublicContest)
-    .filter((contest) => hasPublicThumbnail(contest.poster_image_url))
-    .map(toDetailPayload);
+    .filter((contest) => hasPublicThumbnail(contest.poster_image_url));
+
+  return dedupePublicContests(contests).map(toDetailPayload);
 }
 
 export async function getContestDetailPayload(slug: string): Promise<{
@@ -307,12 +309,14 @@ export async function getRelatedContestsPayload(
   const { data, error } = await query;
   if (error) throw new Error(`[getRelatedContestsPayload] ${error.message}`);
 
-  const items = ((data ?? []) as ContestRow[])
+  const contests = ((data ?? []) as ContestRow[])
     .map(normalizeContestRow)
     .filter(isPublicContest)
     .filter((contest) => hasPublicThumbnail(contest.poster_image_url))
+    .filter((contest) => contest.id !== excludeId);
+
+  const items = dedupePublicContests(contests)
     .map(toDetailPayload)
-    .filter((item) => item.id !== excludeId)
     .slice(0, safeLimit);
 
   return { ok: true, items };

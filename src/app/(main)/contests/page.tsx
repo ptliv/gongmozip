@@ -22,7 +22,7 @@ export function generateMetadata(): Metadata {
 }
 
 export default async function ContestsPage() {
-  const contests = await fetchContests({ verified_only: true }).catch((e: unknown) => {
+  const contests = await fetchContests({ verified_only: true, limit: 180 }).catch((e: unknown) => {
     console.error("[ContestsPage] fetchContests 실패:", e);
     return [];
   });

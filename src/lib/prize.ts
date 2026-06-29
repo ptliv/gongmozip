@@ -29,6 +29,8 @@ interface PrizeAmountCandidate {
 
 const AMOUNT_PATTERN = /(\d+(?:,\d{3})*(?:\.\d+)?)\s*(억원|억|천만원|천만|백만원|백만|만\s*원|만원|원)/g;
 const BARE_PRIZE_NUMBER_PATTERN = /(총상금|최고상|상금|대상|최우수상|우수상)\s*:?\s*(\d{4,}(?:,\d{3})*)/g;
+const BARE_SMALL_PRIZE_NUMBER_PATTERN =
+  /^(총상금|최고상|상금|대상|최우수상|우수상)\s*:?\s*\d{1,3}$/;
 
 const PRIZE_KEYWORDS = [
   "상금",
@@ -227,8 +229,12 @@ function compactPrizeText(text: string): string {
     })
     .replace(/\s+/g, " ")
     .trim();
-  if (normalized.length <= 46) return normalized;
-  return `${normalized.slice(0, 43).trim()}...`;
+  const displayText = splitPrizeSegments(normalized)
+    .filter((segment) => !BARE_SMALL_PRIZE_NUMBER_PATTERN.test(segment))
+    .join(" / ");
+
+  if (displayText.length <= 46) return displayText;
+  return `${displayText.slice(0, 43).trim()}...`;
 }
 
 export function getContestPrizeInfo(contest: Contest): ContestPrizeInfo | null {
@@ -240,9 +246,11 @@ export function getContestPrizeInfo(contest: Contest): ContestPrizeInfo | null {
   const amount = isPrizeLike ? extractPrizeAmount(sourceText) : null;
   const hasDisplayableAmount = extractPrizeAmount(sourceText) !== null;
   if (!isPrizeLike && !hasDisplayableAmount) return null;
+  const text = compactPrizeText(sourceText);
+  if (!text && amount === null) return null;
 
   return {
-    text: compactPrizeText(sourceText),
+    text,
     amount,
     amountLabel: amount === null ? null : formatKoreanPrizeAmount(amount),
     isPrizeLike,

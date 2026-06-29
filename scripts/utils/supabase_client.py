@@ -36,17 +36,33 @@ load_dotenv(dotenv_path=".env")        # 없으면 .env도 시도
 # DB 체크 제약조건(contests_status_check): upcoming | ongoing | closed | canceled
 # ------------------------------------------------------------------
 CONTEST_STATUS_UPCOMING = "upcoming"
-CONTEST_STATUS_ONGOING  = "ongoing"    # 크롤링 직후 기본값 — 현재 모집 중
+CONTEST_STATUS_ONGOING  = "ongoing"
 CONTEST_STATUS_CLOSED   = "closed"
 CONTEST_STATUS_CANCELED = "canceled"
 
-# 크롤러가 신규 저장 시 사용하는 기본 status
-# 위비티 등 외부 사이트에서 수집한 공고는 현재 모집 중인 것으로 간주
+# 크롤러가 날짜 정보로 상태를 판단하지 못할 때만 사용하는 기본 status
 CRAWLED_DEFAULT_STATUS = CONTEST_STATUS_ONGOING
 
 
 def _today_key() -> str:
     return datetime.now(ZoneInfo("Asia/Seoul")).date().isoformat()
+
+
+def derive_crawled_status(contest: dict) -> str:
+    """
+    크롤링된 날짜 필드를 기준으로 공개 상태를 산정합니다.
+
+    apply_end_at은 날짜 단위로 수집되므로 오늘 마감 공고는 아직 ongoing으로 둡니다.
+    """
+    today = _today_key()
+    apply_start = normalize_date(contest.get("apply_start_at") or "")
+    apply_end = normalize_date(contest.get("apply_end_at") or "")
+
+    if apply_end and apply_end < today:
+        return CONTEST_STATUS_CLOSED
+    if apply_start and apply_start > today:
+        return CONTEST_STATUS_UPCOMING
+    return CRAWLED_DEFAULT_STATUS
 
 
 def get_supabase_client() -> Client:
@@ -97,7 +113,7 @@ def upsert_contest(
               {"action": "error", "error": str}
 
     저장 시 공통 필드를 강제로 덮어씁니다:
-        - status      = CRAWLED_DEFAULT_STATUS ("ongoing") — 모집 중으로 간주
+        - status      = 날짜 기반 산정값 ("upcoming"|"ongoing"|"closed")
         - is_verified = False        (관리자 검증 전)
         - crawled_at  = 현재 UTC 시각
     """
@@ -118,8 +134,7 @@ def upsert_contest(
 
     # 공통 필드 강제 설정
     # contests_status_check 허용값: upcoming | ongoing | closed | canceled
-    # 크롤링한 공고는 현재 모집 중으로 간주 → CRAWLED_DEFAULT_STATUS = "ongoing"
-    contest["status"] = CRAWLED_DEFAULT_STATUS
+    contest["status"] = derive_crawled_status(contest)
     contest["is_verified"] = False
     contest["crawled_at"] = datetime.now(timezone.utc).isoformat()
     if skip_source_checked_at_column:
@@ -240,7 +255,7 @@ def close_expired_contests(
             client.table("contests")
             .select("id, title, apply_end_at, status, source_site")
             .in_("status", target_statuses)
-            .lte("apply_end_at", today)
+            .lt("apply_end_at", today)
             .not_.is_("apply_end_at", "null")
         )
         if source_site:
@@ -324,7 +339,7 @@ def purge_expired_contests(
     dry_run: bool = False,
 ) -> dict:
     """
-    apply_end_at이 오늘 이전 또는 오늘인 공고를 DB에서 삭제합니다.
+    apply_end_at이 오늘보다 과거인 공고를 DB에서 삭제합니다.
 
     AdSense 심사 표면에 마감 공고가 대량 노출되지 않도록 크롤링 실행 후
     close_expired_contests() 다음 단계에서 사용합니다.
@@ -355,7 +370,7 @@ def purge_expired_contests(
         candidates = []
         for row in rows:
             normalized_end = normalize_date(row.get("apply_end_at") or "")
-            if normalized_end and normalized_end <= today:
+            if normalized_end and normalized_end < today:
                 candidates.append(row)
     except Exception as e:
         logger.error(f"[purge_expired] 후보 조회 실패: {e}")

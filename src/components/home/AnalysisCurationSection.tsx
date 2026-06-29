@@ -24,7 +24,7 @@ interface AnalysisCurationItem {
   readonly analysis: PublicContestAnalysis;
 }
 
-const ANALYSIS_POOL_LIMIT = 48;
+const ANALYSIS_POOL_LIMIT = 24;
 
 function reviewScore(contest: Contest): number {
   return Number.isFinite(contest.review_score) ? contest.review_score ?? 0 : 0;
@@ -111,18 +111,18 @@ export function AnalysisCurationSection({ contests }: AnalysisCurationSectionPro
 
   const analysisPool = buildAnalysisPool(contests);
   const sections = {
-    today: uniqueById(analysisPool, 2),
+    today: uniqueById(analysisPool, 1),
     beginner: uniqueById(
       analysisPool.filter((item) => item.analysis.filters.beginnerRecommended),
-      2
+      1
     ),
     portfolio: uniqueById(
       analysisPool.filter((item) => item.analysis.filters.portfolioHigh),
-      2
+      1
     ),
-    deadline: uniqueById(manageableDeadline(analysisPool), 2),
+    deadline: uniqueById(manageableDeadline(analysisPool), 1),
   };
-  const topTen = analysisPool.slice(0, 10);
+  const topTen = analysisPool.slice(0, 5);
 
   return (
     <section className="py-12">
@@ -183,7 +183,7 @@ export function AnalysisCurationSection({ contests }: AnalysisCurationSectionPro
         <div className="mt-8 border-t border-gray-100 pt-6">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-base font-bold text-gray-900">공모전집 분석 점수 TOP 10</h3>
+              <h3 className="text-base font-bold text-gray-900">공모전집 분석 점수 TOP 5</h3>
               <p className="mt-0.5 text-xs text-gray-500">
                 상금, 기관 신뢰도, 포트폴리오성, 준비 난이도, 마감 여유를 종합했습니다.
               </p>

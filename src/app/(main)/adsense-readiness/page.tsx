@@ -23,7 +23,12 @@ const STATIC_CHECKS: CheckItem[] = [
   {
     label: "Google AdSense 스크립트",
     status: "pass",
-    note: "RootLayout · next/script · strategy=afterInteractive · async · crossOrigin=anonymous · ca-pub-7242419267984081",
+    note: "RootLayout <head> · async script · crossOrigin=anonymous · ca-pub-7242419267984081",
+  },
+  {
+    label: "ads.txt",
+    status: "pass",
+    note: "루트 /ads.txt에 google.com, pub-7242419267984081, DIRECT, f08c47fec0942fa0 공개",
   },
   {
     label: "/adsense-readiness noindex",
@@ -71,7 +76,7 @@ const STATIC_CHECKS: CheckItem[] = [
   {
     label: "robots.txt",
     status: "pass",
-    note: "/admin, /adsense-readiness 크롤링 차단 · 공개 페이지 전체 허용",
+    note: "Googlebot · AdsBot-Google · Mediapartners-Google 공개 페이지 허용",
   },
   {
     label: "sitemap.xml",
@@ -112,7 +117,7 @@ const STATIC_CHECKS: CheckItem[] = [
   {
     label: "HTTPS",
     status: "pass",
-    note: "gongmozip.com — Vercel 자동 TLS",
+    note: "gongmozip.com — Cloudflare TLS",
   },
 ];
 
@@ -266,6 +271,7 @@ export default async function AdsenseReadinessPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {[
             { label: "robots.txt", href: "/robots.txt", expect: "/admin 차단 확인" },
+            { label: "ads.txt", href: "/ads.txt", expect: "AdSense 게시자 ID 확인" },
             { label: "sitemap.xml", href: "/sitemap.xml", expect: "공개 페이지 포함 확인" },
           ].map((item) => (
             <a

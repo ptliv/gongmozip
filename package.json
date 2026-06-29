@@ -5,10 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "preview:cloudflare": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "deploy:cloudflare": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "upload:cloudflare": "opennextjs-cloudflare build && opennextjs-cloudflare upload",
+    "seo:static": "python scripts/deploy/generate_static_seo_files.py",
+    "preview:cloudflare": "npm run seo:static && opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy:cloudflare": "npm run seo:static && opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "upload:cloudflare": "npm run seo:static && opennextjs-cloudflare build && opennextjs-cloudflare upload",
     "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
+    "test:domain": "node tests/domain_logic.test.cjs",
     "start": "next start",
     "lint": "next lint"
   },
