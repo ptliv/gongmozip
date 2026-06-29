@@ -120,6 +120,7 @@ export type VerifiedLevel    = (typeof VERIFIED_LEVELS)[number];
 /** 혜택 정보 — Supabase에서 JSONB 컬럼으로 저장 */
 export interface ContestBenefit {
   prize?: string;       // 혜택 요약 텍스트 (예: "최대 500만원", "월 30만원 활동비")
+  text?: string;        // 크롤러가 수집한 시상/혜택 원문 요약
   types: BenefitType[]; // 혜택 종류 목록
 }
 
@@ -169,6 +170,7 @@ export interface Contest {
   external_id?: string | null;
   raw_payload?: Record<string, unknown> | null;
   crawled_at?: string | null;
+  source_checked_at?: string | null;
   is_verified?: boolean;
 
   // 메타

@@ -19,6 +19,11 @@ from sources.allcon import fetch_allcon_detail
 from sources.campuspick import fetch_campuspick_detail
 from sources.wevity import fetch_wevity_detail
 from utils import logger
+from utils.ai_content_enrichment import (
+    enrich_contest_with_vertex_ai,
+    has_vertex_environment,
+    load_ai_enrichment_settings_from_env,
+)
 from utils.auto_score import decide_verified_level, score_contest
 from utils.content_enrichment import enrich_contest_content, is_expired, strip_html
 from utils.normalize import normalize_date
@@ -88,6 +93,12 @@ def enrich_existing_contests(
         f"[enrich_existing] 시작 | rows={len(rows)} source={source_site or 'all'} "
         f"min_description_chars={min_description_chars} dry_run={dry_run}"
     )
+    ai_settings = load_ai_enrichment_settings_from_env()
+    ai_vertex_ready = has_vertex_environment()
+    if ai_settings.enabled and ai_vertex_ready:
+        logger.info(f"[enrich_existing][ai] Gemini 보강 활성화: model={ai_settings.model}")
+    elif ai_settings.enabled:
+        logger.warning("[enrich_existing][ai] Vertex 환경변수 누락으로 Gemini 보강을 건너뜁니다.")
 
     for index, row in enumerate(rows, start=1):
         title = (row.get("title") or "")[:42]
@@ -105,6 +116,12 @@ def enrich_existing_contests(
                     row.update(detail_update)
 
             enrich_contest_content(row)
+            if ai_settings.enabled and ai_vertex_ready:
+                outcome = enrich_contest_with_vertex_ai(row, settings=ai_settings)
+                logger.info(
+                    f"[enrich_existing][ai] [{index}/{len(rows)}] "
+                    f"{outcome.reason} | {title}"
+                )
             score = score_contest(row)
             payload = {
                 field: row.get(field)

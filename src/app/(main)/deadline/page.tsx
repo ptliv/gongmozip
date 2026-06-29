@@ -3,12 +3,14 @@ import Link from "next/link";
 import { ContestGrid } from "@/components/ui/ContestGrid";
 import { getDeadlineContestsPayload } from "@/lib/supabase/public-contest-queries";
 import { canonicalUrl } from "@/lib/seo";
+import { NOINDEX_FOLLOW_ROBOTS } from "@/lib/indexing";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "마감임박 공고",
   description: "오늘 기준으로 마감일이 가까운 공모전/대외활동 공고를 확인하세요.",
+  robots: NOINDEX_FOLLOW_ROBOTS,
   alternates: {
     canonical: canonicalUrl("/deadline"),
   },

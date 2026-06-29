@@ -1,5 +1,6 @@
 import type { Contest } from "@/types/contest";
 import { getDaysUntilDeadline } from "@/lib/date";
+import { getPrizeText } from "@/lib/prize";
 
 export type AnalysisTone = "blue" | "emerald" | "amber" | "rose" | "violet" | "gray";
 
@@ -55,7 +56,7 @@ function deadlineDays(contest: Contest): number {
 }
 
 function hasPrize(contest: Contest): boolean {
-  return Boolean(contest.benefit?.prize?.trim() || (contest.benefit?.types?.length ?? 0) > 0);
+  return Boolean(getPrizeText(contest) || (contest.benefit?.types?.length ?? 0) > 0);
 }
 
 function isTrustedOrganizer(contest: Contest): boolean {
@@ -378,7 +379,7 @@ function deadlineRisk(contest: Contest): { label: string; description: string; t
 }
 
 function benefit(contest: Contest): { label: string; description: string; tone: AnalysisTone } {
-  const hasPrize = Boolean(contest.benefit?.prize?.trim());
+  const hasPrize = Boolean(getPrizeText(contest));
   const typeCount = contest.benefit?.types?.length ?? 0;
 
   if (hasPrize && typeCount > 0) {

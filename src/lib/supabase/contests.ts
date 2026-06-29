@@ -141,6 +141,7 @@ export function normalizeContestRow(row: Partial<ContestRow>): Contest {
     external_id: (row.external_id as string | null) ?? null,
     raw_payload: (row.raw_payload as Record<string, unknown> | null) ?? null,
     crawled_at: (row.crawled_at as string | null) ?? null,
+    source_checked_at: (row.source_checked_at as string | null) ?? null,
     is_verified: Boolean(row.is_verified),
     verified_level: Number(row.verified_level ?? 0) as Contest["verified_level"],
     review_score: row.review_score != null ? Number(row.review_score) : null,

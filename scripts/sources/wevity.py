@@ -1824,7 +1824,8 @@ def _parse_wevity_detail_soup(soup: BeautifulSoup) -> Optional[dict]:
     # 시상/혜택
     for label in ("시상/혜택", "시상내역", "혜택"):
         if label in meta:
-            update["benefit"] = {"text": meta[label], "types": []}
+            benefit_text = meta[label]
+            update["benefit"] = {"prize": benefit_text, "text": benefit_text, "types": []}
             break
 
     # 참가지역

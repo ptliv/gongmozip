@@ -1,0 +1,81 @@
+﻿ M .gitignore
+ M package-lock.json
+ M package.json
+ M scripts/__pycache__/crawl_all.cpython-311.pyc
+ M scripts/debug/allcon_t1_p1.json
+ M scripts/debug/allcon_t2_p1.json
+ M scripts/debug/campuspick_p1.json
+ M scripts/debug/wevity_page1.html
+ M scripts/sources/__pycache__/allcon.cpython-311.pyc
+ M scripts/sources/__pycache__/campuspick.cpython-311.pyc
+ M scripts/sources/__pycache__/wevity.cpython-311.pyc
+ M scripts/sources/allcon.py
+ M scripts/sources/campuspick.py
+ M scripts/sources/wevity.py
+ M scripts/utils/__pycache__/logger.cpython-310.pyc
+ M scripts/utils/__pycache__/logger.cpython-311.pyc
+ M scripts/utils/__pycache__/supabase_client.cpython-310.pyc
+ M scripts/utils/__pycache__/supabase_client.cpython-311.pyc
+ M scripts/utils/content_enrichment.py
+ M scripts/utils/supabase_client.py
+ M src/app/(main)/categories/[category]/page.tsx
+ M src/app/(main)/contests/[slug]/page.tsx
+ M src/app/(main)/contests/page.tsx
+ M src/app/(main)/deadline/7days/page.tsx
+ M src/app/(main)/deadline/page.tsx
+ M src/app/(main)/field/[field]/page.tsx
+ M src/app/(main)/guides/[slug]/page.tsx
+ M src/app/(main)/guides/page.tsx
+ M src/app/(main)/host/[host]/page.tsx
+ M src/app/(main)/latest/page.tsx
+ M src/app/(main)/page.tsx
+ M src/app/(main)/target/[target]/page.tsx
+ M src/app/(main)/type/[type]/page.tsx
+ M src/app/sitemap.ts
+ M src/components/contest/ContestCard.tsx
+ M src/components/home/CTASection.tsx
+ M src/components/home/GuideSection.tsx
+ M src/components/home/HeroSection.tsx
+ M src/components/ui/ContestGrid.tsx
+ M src/data/guides.ts
+ M src/lib/contest-analysis.ts
+ M src/lib/contest-text.ts
+ M src/lib/supabase/contests.ts
+ M src/types/contest.ts
+ M src/types/database.ts
+ M supabase/schema.sql
+?? .omo/
+?? open-next.config.ts
+?? scripts/__pycache__/enrich_existing_contests.cpython-311.pyc
+?? scripts/__pycache__/purge_no_thumbnail_contests.cpython-311.pyc
+?? scripts/__pycache__/rescore_contests.cpython-311.pyc
+?? scripts/__pycache__/threads_contest_publisher.cpython-311.pyc
+?? scripts/debug/contest_detail_local_3000.png
+?? scripts/debug/contest_list_local_3000.png
+?? scripts/debug/lighthouse_desktop_gongmozip.json
+?? scripts/debug/lighthouse_desktop_local_after.json
+?? scripts/debug/lighthouse_desktop_local_final.json
+?? scripts/debug/lighthouse_desktop_prod_final.json
+?? scripts/debug/lighthouse_mobile_gongmozip.json
+?? scripts/debug/lighthouse_mobile_local_after.json
+?? scripts/debug/lighthouse_mobile_local_final.json
+?? scripts/debug/lighthouse_mobile_prod_final.json
+?? scripts/debug/production_url_check_20260525_225525.json
+?? scripts/debug/production_url_check_20260526_070309.json
+?? scripts/debug/production_url_check_20260526_182913.json
+?? scripts/debug/production_url_check_20260527_070316.json
+?? scripts/debug/seo_surface_check_20260526_070251.json
+?? scripts/debug/seo_surface_check_20260526_070616.json
+?? scripts/debug/seo_surface_check_20260526_182856.json
+?? scripts/debug/seo_surface_check_20260527_070308.json
+?? scripts/deploy/static_snapshot.cjs
+?? scripts/utils/__pycache__/auto_score.cpython-311.pyc
+?? scripts/utils/__pycache__/content_enrichment.cpython-311.pyc
+?? src/app/(main)/guide/
+?? src/app/sitemap-noindex.xml/
+?? src/components/guide/
+?? src/components/seo/
+?? src/lib/indexing.ts
+?? src/lib/prize.ts
+?? supabase/migrations/20260616_add_source_checked_at.sql
+?? wrangler.jsonc

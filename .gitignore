@@ -12,6 +12,12 @@ out/
 # vercel
 .vercel/
 
+# cloudflare
+.open-next/
+.wrangler/
+.dev.vars
+cloudflare-static/
+
 # logs
 *.log
 npm-debug.log*

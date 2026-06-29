@@ -1,156 +1,179 @@
 import Link from "next/link";
 import Image from "next/image";
-import { Contest } from "@/types/contest";
+import {
+  BarChart3,
+  Building2,
+  CalendarDays,
+  Gift,
+  Image as ImageIcon,
+  ShieldCheck,
+  Users,
+} from "lucide-react";
+import type { Contest } from "@/types/contest";
+import { BookmarkToggleButton } from "@/components/bookmark/BookmarkToggleButton";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import { DeadlineBadge } from "@/components/ui/DeadlineBadge";
-import { BookmarkToggleButton } from "@/components/bookmark/BookmarkToggleButton";
-import { formatDate } from "@/lib/date";
-import { getContestHref } from "@/lib/slug";
 import { buildPublicContestAnalysis } from "@/lib/contest-analysis";
-import { Building2, Users, Gift, Image as ImageIcon, Sparkles } from "lucide-react";
+import { formatDate } from "@/lib/date";
+import { getContestPrizeInfo } from "@/lib/prize";
+import { getContestHref } from "@/lib/slug";
 
 interface ContestCardProps {
-  contest: Contest;
-  variant?: "default" | "compact";
+  readonly contest: Contest;
+  readonly variant?: "default" | "compact";
+}
+
+function safeDateLabel(value: string | null | undefined): string {
+  if (!value) return "일정 확인";
+  try {
+    return formatDate(value);
+  } catch {
+    return "일정 확인";
+  }
+}
+
+function targetLabel(contest: Contest): string {
+  return contest.target.length > 0 ? contest.target.join(", ") : "대상 확인 필요";
 }
 
 export function ContestCard({ contest, variant = "default" }: ContestCardProps) {
   const href = getContestHref(contest);
   const posterUrl = contest.poster_image_url;
   const analysis = buildPublicContestAnalysis(contest);
+  const prizeInfo = getContestPrizeInfo(contest);
+  const deadlineText = safeDateLabel(contest.apply_end_at);
+  const checkedText = safeDateLabel(contest.source_checked_at ?? contest.crawled_at ?? contest.updated_at);
   const bookmarkItem = {
     slug: contest.slug,
     title: contest.title,
     organizer: contest.organizer,
     apply_end_at: contest.apply_end_at,
   };
-  const deadlineText = (() => {
-    if (!contest.apply_end_at) return "마감일 미정";
-    try {
-      return formatDate(contest.apply_end_at);
-    } catch {
-      return "마감일 미정";
-    }
-  })();
 
   if (variant === "compact") {
     return (
       <Link href={href} className="group block">
-        <div className="flex items-center gap-4 p-4 rounded-2xl border border-gray-100 bg-white hover:shadow-card-hover hover:border-blue-100 hover:-translate-y-0.5 transition-all duration-200">
-          <div className="relative w-11 h-11 rounded-xl bg-gray-100 border border-gray-100 overflow-hidden flex items-center justify-center flex-shrink-0">
-            {posterUrl ? (
-              <Image
-                src={posterUrl}
-                alt={`${contest.title} 포스터`}
-                fill
-                sizes="44px"
-                quality={60}
-                className="object-cover"
-              />
-            ) : (
-              <Building2 className="w-4 h-4 text-blue-600" />
-            )}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+        <article className="grid gap-3 rounded-lg border border-stone-200 bg-white p-4 transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-card-hover sm:grid-cols-[1fr_auto]">
+          <div className="min-w-0">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <CategoryChip label={contest.type} variant="type" />
+              <span className="report-chip border-emerald-200 bg-emerald-50 text-emerald-800">
+                지원 가치 {analysis.score}점
+              </span>
+            </div>
+            <p className="truncate text-sm font-black text-zinc-950 group-hover:text-amber-800">
               {contest.title}
             </p>
-            <p className="text-xs text-gray-600 mt-0.5">{contest.organizer}</p>
-            <p className="mt-1 text-[11px] font-semibold text-blue-600">
-              지원 가치 {analysis.score}점 · 난이도 {analysis.difficultyLabel}
+            <p className="mt-1 truncate text-xs font-semibold text-zinc-500">{contest.organizer}</p>
+            <p className="mt-2 text-[11px] font-bold text-zinc-600">
+              {analysis.prepPeriodLabel} · {analysis.deadlineRiskLabel} · {analysis.portfolioValueLabel}
             </p>
           </div>
-          <DeadlineBadge applyEndAt={contest.apply_end_at} />
-        </div>
+          <div className="flex items-center justify-between gap-3 sm:flex-col sm:items-end">
+            <DeadlineBadge applyEndAt={contest.apply_end_at} />
+            {prizeInfo && (
+              <span className="inline-flex max-w-[11rem] items-center gap-1 rounded-md bg-amber-100 px-2 py-1 text-[11px] font-black text-amber-900">
+                <Gift className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{prizeInfo.amountLabel ?? prizeInfo.text}</span>
+              </span>
+            )}
+          </div>
+        </article>
       </Link>
     );
   }
 
   return (
-    <article className="group relative h-full flex flex-col p-5 rounded-2xl border border-gray-100 bg-white shadow-card hover:shadow-card-hover hover:border-blue-100/70 hover:-translate-y-1 transition-all duration-200">
-      <div className="absolute right-4 top-4 z-10">
+    <article className="group relative flex h-full flex-col rounded-lg border border-stone-200 bg-white shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-card-hover">
+      <div className="absolute right-3 top-3 z-10">
         <BookmarkToggleButton item={bookmarkItem} />
       </div>
 
-      <Link href={href} className="block h-full">
-        <div className="h-full flex flex-col">
-          <div className="relative aspect-[16/9] rounded-xl bg-gray-100 border border-gray-100 overflow-hidden mb-4">
-            {posterUrl ? (
-              <Image
-                src={posterUrl}
-                alt={`${contest.title} 포스터`}
-                fill
-                sizes="(min-width: 1024px) 320px, (min-width: 640px) calc(50vw - 40px), calc(100vw - 76px)"
-                quality={60}
-                className="object-cover transition-transform duration-300 group-hover:scale-[1.03]"
-              />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-gray-50 to-blue-50">
-                <ImageIcon className="w-8 h-8 text-gray-300" />
-              </div>
-            )}
-          </div>
-
-          {/* 유형 + 마감 배지 */}
-          <div className="flex items-start justify-between gap-2 mb-3 pr-10">
-            <div className="flex items-center gap-1.5">
-              <CategoryChip label={contest.type} variant="type" />
+      <Link href={href} className="flex h-full flex-col">
+        <div className="relative aspect-[16/9] overflow-hidden rounded-t-lg border-b border-stone-200 bg-stone-100">
+          {posterUrl ? (
+            <Image
+              src={posterUrl}
+              alt={`${contest.title} 포스터`}
+              fill
+              sizes="(min-width: 1024px) 320px, (min-width: 640px) calc(50vw - 40px), calc(100vw - 76px)"
+              quality={60}
+              className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+            />
+          ) : (
+            <div className="absolute inset-0 flex items-center justify-center bg-stone-100">
+              <ImageIcon className="h-8 w-8 text-stone-300" />
             </div>
+          )}
+          {prizeInfo && (
+            <div className="absolute left-3 top-3 max-w-[calc(100%-4.5rem)] rounded-md border border-amber-200 bg-amber-100 px-2.5 py-1.5 text-amber-950 shadow-sm">
+              <div className="flex items-center gap-1.5">
+                <Gift className="h-3.5 w-3.5 flex-shrink-0" />
+                <span className="truncate text-xs font-black">{prizeInfo.amountLabel ?? prizeInfo.text}</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-1 flex-col p-4">
+          <div className="mb-3 flex items-start justify-between gap-2 pr-9">
+            <CategoryChip label={contest.type} variant="type" />
             <DeadlineBadge applyEndAt={contest.apply_end_at} />
           </div>
 
-          {/* 제목 */}
-          <h3 className="text-[0.9375rem] font-bold text-gray-900 group-hover:text-blue-700 transition-colors leading-snug mb-1.5 line-clamp-2">
+          <h3 className="line-clamp-2 text-[0.96rem] font-black leading-snug text-zinc-950 transition-colors group-hover:text-amber-800">
             {contest.title}
           </h3>
-
-          {/* 한 줄 요약 */}
-          <p className="text-xs text-gray-500 leading-relaxed mb-4 line-clamp-2 flex-1">
+          <p className="mt-2 line-clamp-2 min-h-[2.5rem] text-xs leading-relaxed text-zinc-500">
             {contest.summary}
           </p>
 
-          {/* 공모전집 분석 */}
-          <div className="mb-4 flex flex-wrap items-center gap-2 text-[11px]">
-            <span className="inline-flex items-center gap-1 rounded-full border border-blue-100 bg-blue-50 px-2.5 py-1 font-bold text-blue-700">
-              <Sparkles className="h-3 w-3" />
-              지원 가치 {analysis.score}점
-            </span>
-            <span className="inline-flex items-center rounded-full border border-gray-100 bg-gray-50 px-2.5 py-1 font-semibold text-gray-600">
-              난이도 {analysis.difficultyLabel}
-            </span>
+          <div className="mt-4 grid grid-cols-3 gap-2">
+            <Metric label="가치" value={`${analysis.score}점`} />
+            <Metric label="준비" value={analysis.prepPeriodLabel} />
+            <Metric label="위험" value={analysis.deadlineRiskLabel} />
           </div>
 
-          {/* 메타 정보 */}
-          <div className="space-y-1.5 mb-4">
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <Building2 className="w-3.5 h-3.5 flex-shrink-0 text-gray-400" />
-              <span className="truncate">{contest.organizer}</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <Users className="w-3.5 h-3.5 flex-shrink-0 text-gray-400" />
-              <span className="truncate">
-                {contest.target.length > 0 ? contest.target.join(", ") : "대상 미정"}
-              </span>
-            </div>
-            {contest.benefit.prize && (
-              <div className="flex items-center gap-2 text-xs">
-                <Gift className="w-3.5 h-3.5 flex-shrink-0 text-amber-500" />
-                <span className="font-semibold text-amber-700 truncate">{contest.benefit.prize}</span>
-              </div>
-            )}
+          <div className="mt-4 space-y-2 text-xs text-zinc-600">
+            <InfoRow icon={Building2} label={contest.organizer} />
+            <InfoRow icon={Users} label={targetLabel(contest)} />
+            <InfoRow icon={CalendarDays} label={`마감 ${deadlineText}`} />
+            <InfoRow icon={ShieldCheck} label={`확인 ${checkedText}`} />
           </div>
 
-          {/* 분야 + 마감일 */}
-          <div className="flex items-center justify-between pt-3 border-t border-gray-50">
+          <div className="mt-auto flex items-center justify-between gap-3 border-t border-stone-100 pt-4">
             <CategoryChip label={contest.field} variant="field" />
-            <span className="text-xs text-gray-600 tabular-nums">
-              {contest.apply_end_at && deadlineText !== "마감일 미정"
-                ? `~${deadlineText}`
-                : deadlineText}
+            <span className="inline-flex items-center gap-1 text-xs font-black text-zinc-700">
+              <BarChart3 className="h-3.5 w-3.5 text-amber-700" />
+              {analysis.difficultyLabel}
             </span>
           </div>
         </div>
       </Link>
     </article>
+  );
+}
+
+function Metric({ label, value }: { readonly label: string; readonly value: string }) {
+  return (
+    <div className="rounded-md border border-stone-200 bg-stone-50 px-2 py-2 text-center">
+      <p className="truncate text-[10px] font-black text-zinc-400">{label}</p>
+      <p className="mt-0.5 truncate text-xs font-black text-zinc-900">{value}</p>
+    </div>
+  );
+}
+
+function InfoRow({
+  icon: Icon,
+  label,
+}: {
+  readonly icon: typeof Building2;
+  readonly label: string;
+}) {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <Icon className="h-3.5 w-3.5 flex-shrink-0 text-zinc-400" />
+      <span className="truncate font-semibold">{label}</span>
+    </div>
   );
 }

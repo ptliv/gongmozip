@@ -505,12 +505,16 @@ def enrich_contest_content(contest: dict) -> dict:
     if summary:
         contest["summary"] = summary
 
+    source_checked_at = datetime.now(ZoneInfo("Asia/Seoul")).isoformat()
+    contest.setdefault("source_checked_at", source_checked_at)
+
     raw_payload = contest.get("raw_payload")
     if not isinstance(raw_payload, dict):
         raw_payload = {}
     enrichment = raw_payload.get("enrichment")
     if not isinstance(enrichment, dict):
         enrichment = {}
+    enrichment["source_checked_at"] = source_checked_at
     if official_meta:
         enrichment.update(
             {

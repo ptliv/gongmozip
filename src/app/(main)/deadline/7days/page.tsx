@@ -2,20 +2,15 @@ import type { Metadata } from "next";
 import { ContestGrid } from "@/components/ui/ContestGrid";
 import { getDeadline7DaysContestsPayload } from "@/lib/supabase/public-contest-queries";
 import { canonicalUrl } from "@/lib/seo";
+import { NOINDEX_FOLLOW_ROBOTS } from "@/lib/indexing";
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata(): Promise<Metadata> {
-  const payload = await getDeadline7DaysContestsPayload(1).catch(() => ({
-    ok: false,
-    items: [],
-  }));
-  const hasItems = payload.ok && payload.items.length > 0;
-
+export function generateMetadata(): Metadata {
   return {
     title: "7일 내 마감 공고",
     description: "오늘 기준 7일 이내 마감되는 진행중 공고 목록입니다.",
-    robots: hasItems ? undefined : { index: false, follow: true },
+    robots: NOINDEX_FOLLOW_ROBOTS,
     alternates: {
       canonical: canonicalUrl("/deadline/7days"),
     },

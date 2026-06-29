@@ -4,12 +4,14 @@ import { ChevronRight } from "lucide-react";
 import { fetchContests } from "@/lib/supabase/contests";
 import { ContestGrid } from "@/components/ui/ContestGrid";
 import { canonicalUrl } from "@/lib/seo";
+import { NOINDEX_FOLLOW_ROBOTS } from "@/lib/indexing";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "최신 공고",
   description: "새롭게 등록된 공모전·대외활동 공고를 가장 먼저 확인하세요.",
+  robots: NOINDEX_FOLLOW_ROBOTS,
   alternates: {
     canonical: canonicalUrl("/latest"),
   },

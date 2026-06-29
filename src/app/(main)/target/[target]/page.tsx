@@ -4,6 +4,7 @@ import {
   getTargetContestsPayload,
 } from "@/lib/supabase/public-contest-queries";
 import { canonicalUrl } from "@/lib/seo";
+import { NOINDEX_FOLLOW_ROBOTS } from "@/lib/indexing";
 
 interface Props {
   params: { target: string };
@@ -15,18 +16,12 @@ function getFallbackLabel(targetSlug: string): string {
   return decodeURIComponent(targetSlug) || "대상";
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const payload = await getTargetContestsPayload(params.target, 1).catch(() => ({
-    ok: false,
-    target: getFallbackLabel(params.target),
-    items: [],
-  }));
-  const label = payload.target || getFallbackLabel(params.target);
-  const hasItems = payload.ok && payload.items.length > 0;
+export function generateMetadata({ params }: Props): Metadata {
+  const label = getFallbackLabel(params.target);
   return {
     title: `${label} 대상 공고`,
     description: `${label} 대상 중심 공모전/대외활동 공고 목록입니다.`,
-    robots: hasItems ? undefined : { index: false, follow: true },
+    robots: NOINDEX_FOLLOW_ROBOTS,
     alternates: {
       canonical: canonicalUrl(`/target/${params.target}`),
     },

@@ -77,7 +77,11 @@ def get_supabase_client() -> Client:
     return create_client(url, key)
 
 
-def upsert_contest(client: Client, contest: dict) -> dict:
+def upsert_contest(
+    client: Client,
+    contest: dict,
+    skip_source_checked_at_column: bool = False,
+) -> dict:
     """
     contests 테이블에 공고 1건을 저장합니다.
 
@@ -118,6 +122,10 @@ def upsert_contest(client: Client, contest: dict) -> dict:
     contest["status"] = CRAWLED_DEFAULT_STATUS
     contest["is_verified"] = False
     contest["crawled_at"] = datetime.now(timezone.utc).isoformat()
+    if skip_source_checked_at_column:
+        contest.pop("source_checked_at", None)
+    else:
+        contest["source_checked_at"] = contest.get("source_checked_at") or contest["crawled_at"]
 
     # ── 자동 품질 점수화 ──────────────────────────────────────────────
     review_score = score_contest(contest)
@@ -167,6 +175,16 @@ def upsert_contest(client: Client, contest: dict) -> dict:
 
     except Exception as e:
         error_msg = str(e)
+        if "source_checked_at" in error_msg and not skip_source_checked_at_column:
+            logger.warning(
+                "DB에 source_checked_at 컬럼이 아직 없어 해당 필드 없이 재시도합니다. "
+                "supabase/migrations/20260616_add_source_checked_at.sql 적용 후 자동 저장됩니다."
+            )
+            return upsert_contest(
+                client,
+                contest,
+                skip_source_checked_at_column=True,
+            )
         logger.error(f"DB 저장 실패 [{source_site}:{external_id}] - {error_msg}")
         return {"action": "error", "error": error_msg}
 

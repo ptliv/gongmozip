@@ -4,6 +4,7 @@ import { CONTEST_CATEGORIES, CONTEST_TYPES } from "@/types/contest";
 import { slugifyContestTitle } from "@/lib/slug";
 import { getCategoryContestsPayload } from "@/lib/supabase/public-contest-queries";
 import { canonicalUrl } from "@/lib/seo";
+import { NOINDEX_FOLLOW_ROBOTS } from "@/lib/indexing";
 
 interface Props {
   params: { category: string };
@@ -22,23 +23,17 @@ function getKnownCategoryName(categorySlug: string): string | null {
   return fromType ?? null;
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
+export function generateMetadata({ params }: Props): Metadata {
   const known = getKnownCategoryName(params.category);
   const decoded = decodeURIComponent(params.category);
   const label = known || decoded || "카테고리";
-  const payload = await getCategoryContestsPayload(params.category).catch(() => ({
-    ok: false,
-    category: label,
-    items: [],
-  }));
-  const hasItems = payload.ok && payload.items.length > 0;
   const title = `${label} 공고`;
   const description = `${label} 기준으로 공모전/대외활동 공고를 모아봤습니다.`;
 
   return {
     title,
     description,
-    robots: hasItems ? undefined : { index: false, follow: true },
+    robots: NOINDEX_FOLLOW_ROBOTS,
     alternates: {
       canonical: canonicalUrl(`/categories/${params.category}`),
     },

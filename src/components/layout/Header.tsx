@@ -2,116 +2,139 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { cn } from "@/lib/utils";
-import { Trophy, Menu, X } from "lucide-react";
 import { useState } from "react";
+import {
+  BookOpenCheck,
+  Bookmark,
+  Clock3,
+  Menu,
+  Newspaper,
+  Search,
+  ShieldCheck,
+  Trophy,
+  X,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const NAV_LINKS = [
-  { href: "/contests", label: "공고 목록" },
-  { href: "/deadline", label: "마감임박" },
-  { href: "/guides", label: "준비 가이드" },
-  { href: "/bookmarks", label: "북마크" },
+  { href: "/contests", label: "공고 탐색", icon: Newspaper },
+  { href: "/deadline", label: "마감 관리", icon: Clock3 },
+  { href: "/guides", label: "준비 가이드", icon: BookOpenCheck },
+  { href: "/about", label: "검증 기준", icon: ShieldCheck },
+  { href: "/bookmarks", label: "북마크", icon: Bookmark },
+] as const;
+
+const QUICK_LINKS = [
   { href: "/contests?type=공모전", label: "공모전" },
   { href: "/contests?type=대외활동", label: "대외활동" },
   { href: "/contests?type=인턴십", label: "인턴십" },
-];
+] as const;
+
+function isActivePath(pathname: string, href: string): boolean {
+  const base = href.split("?")[0] ?? href;
+  return pathname === base || (base !== "/" && pathname.startsWith(`${base}/`));
+}
 
 export function Header() {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
 
-  const isActive = (href: string) => {
-    const base = href.split("?")[0];
-    return pathname === base || (base !== "/" && pathname.startsWith(base));
-  };
-
   return (
-    <header className="sticky top-0 z-50 bg-white/90 backdrop-blur-md border-b border-gray-100 shadow-sm">
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5 group">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-violet-600 flex items-center justify-center shadow-sm group-hover:shadow-blue-glow transition-all duration-200">
-              <Trophy className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-gray-900 text-[1.0625rem] tracking-tight">
-              공모전<span className="text-blue-600">집</span>
+    <header className="sticky top-0 z-50 border-b border-stone-200 bg-[#f8f5ee]/92 backdrop-blur-md">
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="flex h-16 items-center justify-between gap-4">
+          <Link href="/" className="group flex items-center gap-2.5">
+            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-950 shadow-sm transition-colors group-hover:bg-amber-700">
+              <Trophy className="h-4 w-4 text-amber-200" />
+            </span>
+            <span className="text-[1.0625rem] font-black tracking-tight text-zinc-950">
+              공모전<span className="text-amber-700">집</span>
             </span>
           </Link>
 
-          {/* Desktop Nav */}
-          <nav className="hidden md:flex items-center gap-0.5">
+          <nav className="hidden items-center gap-1 md:flex">
             {NAV_LINKS.map((link) => {
-              const active = pathname === link.href || pathname === link.href.split("?")[0] && !link.href.includes("?");
+              const active = isActivePath(pathname, link.href);
+              const Icon = link.icon;
               return (
                 <Link
                   key={link.href}
                   href={link.href}
                   className={cn(
-                    "relative px-3.5 py-2 rounded-lg text-sm font-medium transition-colors duration-150",
-                    isActive(link.href)
-                      ? "text-blue-700 bg-blue-50"
-                      : "text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                    "inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors",
+                    active
+                      ? "bg-white text-zinc-950 shadow-sm ring-1 ring-stone-200"
+                      : "text-zinc-600 hover:bg-white/70 hover:text-zinc-950"
                   )}
                 >
+                  <Icon className="h-3.5 w-3.5" />
                   {link.label}
-                  {isActive(link.href) && (
-                    <span className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full bg-blue-600" />
-                  )}
                 </Link>
               );
             })}
           </nav>
 
-          {/* CTA */}
-          <div className="hidden md:flex items-center gap-3">
-            <Link
-              href="/contests"
-              className="px-4 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 active:scale-95 transition-all duration-150 shadow-sm"
-            >
+          <div className="hidden items-center gap-2 md:flex">
+            {QUICK_LINKS.map((link) => (
+              <Link
+                key={link.href}
+                href={link.href}
+                className="rounded-md px-2.5 py-1.5 text-xs font-semibold text-zinc-500 transition-colors hover:bg-white hover:text-zinc-900"
+              >
+                {link.label}
+              </Link>
+            ))}
+            <Link href="/contests" className="btn-primary px-4 py-2">
+              <Search className="h-4 w-4" />
               공고 검색
             </Link>
           </div>
 
-          {/* Mobile Menu Toggle */}
           <button
-            className="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 active:scale-95 transition-all"
-            onClick={() => setMobileOpen(!mobileOpen)}
+            type="button"
+            className="rounded-lg p-2 text-zinc-600 transition-colors hover:bg-white md:hidden"
+            onClick={() => setMobileOpen((open) => !open)}
             aria-label="메뉴 토글"
+            aria-expanded={mobileOpen}
           >
-            {mobileOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </button>
         </div>
 
-        {/* Mobile Nav */}
         {mobileOpen && (
-          <div className="md:hidden border-t border-gray-100 py-3 pb-4 animate-fade-in-up">
-            <nav className="flex flex-col gap-0.5">
-              {NAV_LINKS.map((link) => (
+          <div className="border-t border-stone-200 py-3 md:hidden">
+            <nav className="grid gap-1">
+              {NAV_LINKS.map((link) => {
+                const active = isActivePath(pathname, link.href);
+                const Icon = link.icon;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setMobileOpen(false)}
+                    className={cn(
+                      "flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors",
+                      active ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-600 hover:bg-white"
+                    )}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {link.label}
+                  </Link>
+                );
+              })}
+            </nav>
+            <div className="mt-3 grid grid-cols-3 gap-2">
+              {QUICK_LINKS.map((link) => (
                 <Link
                   key={link.href}
                   href={link.href}
                   onClick={() => setMobileOpen(false)}
-                  className={cn(
-                    "px-4 py-2.5 rounded-xl text-sm font-medium transition-colors",
-                    isActive(link.href)
-                      ? "bg-blue-50 text-blue-700 font-semibold"
-                      : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
-                  )}
+                  className="rounded-lg border border-stone-200 bg-white px-3 py-2 text-center text-xs font-bold text-zinc-700"
                 >
                   {link.label}
                 </Link>
               ))}
-              <div className="pt-2 px-1">
-                <Link
-                  href="/contests"
-                  onClick={() => setMobileOpen(false)}
-                  className="block w-full text-center px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 transition-colors"
-                >
-                  공고 검색
-                </Link>
-              </div>
-            </nav>
+            </div>
           </div>
         )}
       </div>

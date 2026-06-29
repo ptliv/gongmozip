@@ -1,30 +1,20 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { Suspense } from "react";
-import { fetchContests } from "@/lib/supabase/contests";
+import { BarChart3, Clock3, FileSearch, ShieldCheck } from "lucide-react";
 import { ContestsPageClient } from "@/components/contest/ContestsPageClient";
+import { StructuredData } from "@/components/seo/StructuredData";
+import { getDaysUntilDeadline } from "@/lib/date";
+import { NOINDEX_FOLLOW_ROBOTS } from "@/lib/indexing";
 import { canonicalUrl } from "@/lib/seo";
+import { fetchContests } from "@/lib/supabase/contests";
 
 export const dynamic = "force-dynamic";
 
-interface Props {
-  searchParams?: Record<string, string | string[] | undefined>;
-}
-
-function hasSearchParams(searchParams?: Props["searchParams"]): boolean {
-  return Boolean(
-    searchParams &&
-      Object.values(searchParams).some((value) =>
-        Array.isArray(value) ? value.length > 0 : Boolean(value)
-      )
-  );
-}
-
-export function generateMetadata({ searchParams }: Props): Metadata {
-  const isFilteredPage = hasSearchParams(searchParams);
+export function generateMetadata(): Metadata {
   return {
-    title: "공고 목록",
-    description: "공모전, 대외활동, 인턴십 등 다양한 청년 활동 공고를 검색하세요.",
-    robots: isFilteredPage ? { index: false, follow: true } : undefined,
+    title: "공고 탐색",
+    description: "공모전, 대외활동, 인턴십 공고를 마감일, 혜택, 준비 난이도 기준으로 검토하세요.",
+    robots: NOINDEX_FOLLOW_ROBOTS,
     alternates: {
       canonical: canonicalUrl("/contests"),
     },
@@ -36,41 +26,61 @@ export default async function ContestsPage() {
     console.error("[ContestsPage] fetchContests 실패:", e);
     return [];
   });
+  const metrics = buildListMetrics(contests);
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
-      {/* 페이지 헤더 */}
-      <div className="mb-8">
-        <div className="flex items-center gap-3 mb-2">
-          <div className="section-title-accent" />
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">
-            공고 목록
-          </h1>
-        </div>
-        <p className="text-sm text-gray-500 ml-4 leading-relaxed">
-          공모전, 대외활동, 인턴십 등 다양한 청년 활동 공고를 한곳에서 탐색하세요.
-        </p>
-      </div>
+    <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6">
+      <StructuredData
+        data={{
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          name: "공모전집 공고 탐색",
+          itemListElement: contests.slice(0, 50).map((contest, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            url: canonicalUrl(`/contests/${encodeURIComponent(contest.slug)}`),
+            name: contest.title,
+          })),
+        }}
+      />
 
-      <section className="mb-7 border-y border-gray-100 py-5">
-        <h2 className="text-base font-bold text-gray-900 mb-3">공고 목록 활용 가이드</h2>
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 text-sm leading-relaxed text-gray-600">
-          <p>
-            공모전집의 공고 목록은 현재 모집 중이거나 모집 예정인 공모전, 대외활동, 인턴십을
-            마감일 기준으로 다시 정리해 보여줍니다. 이미 마감된 공고가 탐색 흐름을 방해하지 않도록
-            공개 목록에서는 마감일이 지난 항목을 제외하고, 카드마다 추천도와 준비 난이도를 함께 표시합니다.
-          </p>
-          <p>
-            처음 방문했다면 검색어보다 필터를 먼저 사용하는 편이 좋습니다. 유형, 분야, 대상, 진행 방식을
-            좁힌 뒤 추천순이나 마감임박순으로 정렬하면 지금 지원할 만한 공고를 빠르게 추릴 수 있습니다.
-            관심 공고는 북마크에 저장해 제출 전 체크리스트와 함께 다시 확인하세요.
-          </p>
-          <p>
-            각 상세 페이지에는 참가 대상, 혜택, 마감일, 준비 전략, 유의사항, 자주 묻는 질문을 추가해
-            단순 요약이 아니라 실제 지원 판단에 필요한 정보로 재구성했습니다. 접수 전에는 최신 모집 요강의
-            제출 조건과 접수 시간을 한 번 더 확인하는 것을 권장합니다.
+      <header className="mb-8 grid gap-5 lg:grid-cols-[1fr_22rem] lg:items-end">
+        <div>
+          <div className="mb-4 inline-flex items-center gap-2 rounded-md border border-amber-300 bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-900">
+            <FileSearch className="h-3.5 w-3.5" />
+            공고 검토 워크벤치
+          </div>
+          <h1 className="text-3xl font-black tracking-tight text-zinc-950 sm:text-4xl">
+            지원할 공고를 조건별로 좁혀보세요
+          </h1>
+          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-zinc-600">
+            목록은 검색, 필터, 정렬을 통해 마감 위험과 준비 부담을 함께 검토하도록 구성했습니다. 상세 페이지에서 원문과 준비 체크를 이어 확인하세요.
           </p>
         </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          <MetricTile icon={FileSearch} label="검토 공고" value={`${metrics.total}개`} />
+          <MetricTile icon={Clock3} label="7일 내 마감" value={`${metrics.deadlineSoon}개`} />
+          <MetricTile icon={ShieldCheck} label="출처 확인" value={`${metrics.checked}개`} />
+        </div>
+      </header>
+
+      <section className="mb-7 grid gap-3 lg:grid-cols-3">
+        <GuidePanel
+          icon={BarChart3}
+          title="추천순"
+          description="지원 가치, 마감 여유, 포트폴리오 활용도를 함께 본 공고부터 확인합니다."
+        />
+        <GuidePanel
+          icon={Clock3}
+          title="마감임박순"
+          description="제출 일정이 가까운 공고를 먼저 확인하고 준비 가능 여부를 빠르게 판단합니다."
+        />
+        <GuidePanel
+          icon={ShieldCheck}
+          title="공식 출처"
+          description="접수 전에는 상세 페이지의 공식 링크에서 제출 조건과 시간을 다시 확인합니다."
+        />
       </section>
 
       <Suspense fallback={<ContestsPageSkeleton />}>
@@ -80,14 +90,63 @@ export default async function ContestsPage() {
   );
 }
 
-// ----------------------------------------------------------
-// 로딩 스켈레톤 (shimmer 효과)
-// ----------------------------------------------------------
+function buildListMetrics(contests: Awaited<ReturnType<typeof fetchContests>>) {
+  return {
+    total: contests.length,
+    deadlineSoon: contests.filter((contest) => {
+      const days = getDaysUntilDeadline(contest.apply_end_at);
+      return Number.isFinite(days) && days > 0 && days <= 7;
+    }).length,
+    checked: contests.filter((contest) => Boolean(contest.source_checked_at ?? contest.crawled_at)).length,
+  };
+}
 
-function SkeletonBox({ className }: { className?: string }) {
+function MetricTile({
+  icon: Icon,
+  label,
+  value,
+}: {
+  readonly icon: typeof FileSearch;
+  readonly label: string;
+  readonly value: string;
+}) {
   return (
-    <div className={`relative overflow-hidden rounded-xl bg-gray-100 ${className ?? ""}`}>
-      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.4s_infinite] bg-gradient-to-r from-transparent via-white/60 to-transparent" />
+    <div className="rounded-lg border border-stone-200 bg-white p-3 shadow-card">
+      <Icon className="h-4 w-4 text-amber-700" />
+      <p className="mt-2 text-[11px] font-black text-zinc-400">{label}</p>
+      <p className="mt-0.5 text-lg font-black text-zinc-950">{value}</p>
+    </div>
+  );
+}
+
+function GuidePanel({
+  icon: Icon,
+  title,
+  description,
+}: {
+  readonly icon: typeof FileSearch;
+  readonly title: string;
+  readonly description: string;
+}) {
+  return (
+    <div className="report-panel p-4">
+      <div className="flex items-start gap-3">
+        <span className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-stone-100 text-zinc-600">
+          <Icon className="h-4 w-4" />
+        </span>
+        <span>
+          <span className="block text-sm font-black text-zinc-950">{title}</span>
+          <span className="mt-1 block text-xs leading-relaxed text-zinc-500">{description}</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function SkeletonBox({ className }: { readonly className?: string }) {
+  return (
+    <div className={`relative overflow-hidden rounded-lg bg-stone-100 ${className ?? ""}`}>
+      <div className="absolute inset-0 -translate-x-full animate-[shimmer_1.4s_infinite] bg-gradient-to-r from-transparent via-white/70 to-transparent" />
     </div>
   );
 }
@@ -95,33 +154,28 @@ function SkeletonBox({ className }: { className?: string }) {
 function ContestsPageSkeleton() {
   return (
     <div className="space-y-5">
-      {/* 검색바 */}
-      <SkeletonBox className="h-12 rounded-2xl" />
-
-      {/* 필터바 */}
-      <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-sm">
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <SkeletonBox className="h-5 w-20" />
+      <SkeletonBox className="h-12" />
+      <div className="rounded-lg border border-stone-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-stone-200 px-4 py-3">
           <SkeletonBox className="h-5 w-28" />
+          <SkeletonBox className="h-5 w-24" />
         </div>
-        <div className="px-4 py-3 space-y-3">
-          {[5, 6, 4, 3].map((count, i) => (
-            <div key={i} className="flex items-center gap-3">
-              <SkeletonBox className="w-12 h-4" />
+        <div className="space-y-3 px-4 py-4">
+          {[5, 6, 4, 3].map((count) => (
+            <div key={count} className="flex items-center gap-3">
+              <SkeletonBox className="h-4 w-14" />
               <div className="flex gap-2">
-                {Array.from({ length: count }).map((_, j) => (
-                  <SkeletonBox key={j} className="h-6 w-14 rounded-full" />
+                {Array.from({ length: count }).map((_, index) => (
+                  <SkeletonBox key={index} className="h-7 w-16" />
                 ))}
               </div>
             </div>
           ))}
         </div>
       </div>
-
-      {/* 카드 그리드 */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {Array.from({ length: 6 }).map((_, i) => (
-          <SkeletonBox key={i} className="h-56 rounded-2xl" />
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }).map((_, index) => (
+          <SkeletonBox key={index} className="h-72" />
         ))}
       </div>
     </div>
