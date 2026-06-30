@@ -113,6 +113,7 @@ test("home page wires platform sections and local editorial data", () => {
     "src/components/home/MainHero.tsx",
     "src/components/home/QuickExploreCards.tsx",
     "src/components/home/HomeSearchBand.tsx",
+    "src/components/home/LivePlatformSection.tsx",
     "src/components/home/ContestTableSection.tsx",
     "src/components/home/BriefingSection.tsx",
     "src/components/home/BestStorySection.tsx",
@@ -129,6 +130,7 @@ test("home page wires platform sections and local editorial data", () => {
   const renderedHome = homePage.slice(homePage.indexOf("return ("));
   const orderedTokens = [
     "MainHero",
+    "LivePlatformSection",
     "QuickExploreCards",
     "HomeSearchBand",
     "AnalysisCurationSection",
@@ -157,6 +159,12 @@ test("home page wires platform sections and local editorial data", () => {
 
   const quickExplore = readSource("src/components/home/QuickExploreCards.tsx");
   assert.match(quickExplore, /\/contests\?q=상금&sort=recommended/);
+
+  const livePlatform = readSource("src/components/home/LivePlatformSection.tsx");
+  assert.match(livePlatform, /이 공고 어때요\?/);
+  assert.match(livePlatform, /지원 질문 Live/);
+  assert.match(livePlatform, /새로 올라온 공고/);
+  assert.match(livePlatform, /공고 등록 문의/);
 
   const contestTable = readSource("src/components/home/ContestTableSection.tsx");
   assert.match(contestTable, /min-w-0 rounded-lg border/);

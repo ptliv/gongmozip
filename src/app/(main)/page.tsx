@@ -5,6 +5,7 @@ import { BriefingSection } from "@/components/home/BriefingSection";
 import { ContestTableSection } from "@/components/home/ContestTableSection";
 import { GuideSection } from "@/components/home/GuideSection";
 import { HomeSearchBand } from "@/components/home/HomeSearchBand";
+import { LivePlatformSection } from "@/components/home/LivePlatformSection";
 import { MainHero } from "@/components/home/MainHero";
 import { NewsletterSection } from "@/components/home/NewsletterSection";
 import { QuickExploreCards } from "@/components/home/QuickExploreCards";
@@ -38,6 +39,7 @@ export default async function HomePage() {
         prizeSummary={prizeSummary}
       />
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <LivePlatformSection contests={allContests} />
         <QuickExploreCards />
         <HomeSearchBand />
         <AnalysisCurationSection contests={allContests} />
