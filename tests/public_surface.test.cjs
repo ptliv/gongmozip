@@ -56,6 +56,13 @@ test("runtime source does not hardcode the AdSense publisher id", () => {
   }
 });
 
+test("middleware answers HEAD requests before OpenNext server rendering", () => {
+  const middleware = readSource("src/middleware.ts");
+  assert.match(middleware, /request\.method === "HEAD"/);
+  assert.match(middleware, /new NextResponse\(null/);
+  assert.match(middleware, /\/\(\(\?!_next\/static/);
+});
+
 test("public footer surfaces avoid unverified business identity claims", () => {
   const footerFiles = [
     "src/components/layout/Footer.tsx",

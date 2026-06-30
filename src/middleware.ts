@@ -16,6 +16,15 @@ function getAllowedEmails(): string[] {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  if (request.method === "HEAD") {
+    return new NextResponse(null, {
+      status: 200,
+      headers: {
+        "cache-control": "s-maxage=300, stale-while-revalidate=2592000",
+      },
+    });
+  }
+
   // /admin 이하 경로만 처리
   if (!pathname.startsWith(ADMIN_ROOT)) return NextResponse.next();
 
@@ -75,5 +84,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/admin/:path*"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
 };
