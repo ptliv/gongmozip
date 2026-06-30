@@ -30,12 +30,16 @@ const QUICK_CARDS = [
 
 export function QuickExploreCards() {
   return (
-    <section className="grid gap-3 py-8 sm:grid-cols-2 lg:grid-cols-4">
+    <section className="flex gap-3 overflow-x-auto py-6 scrollbar-hide sm:grid sm:grid-cols-2 sm:overflow-visible lg:grid-cols-4">
       {QUICK_CARDS.map((card) => {
         const Icon = card.icon;
         return (
-          <Link key={card.title} href={card.href} className="group report-panel p-4 transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-card-hover">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-stone-100 text-zinc-700 group-hover:bg-amber-100 group-hover:text-amber-800">
+          <Link
+            key={card.title}
+            href={card.href}
+            className="group report-panel min-w-[16rem] p-4 transition-all hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-card-hover sm:min-w-0"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-100 text-zinc-700 group-hover:bg-amber-100 group-hover:text-amber-800">
               <Icon className="h-4 w-4" aria-hidden="true" />
             </div>
             <h2 className="mt-4 text-base font-black text-zinc-950">{card.title}</h2>

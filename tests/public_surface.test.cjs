@@ -152,7 +152,7 @@ test("home page wires platform sections and local editorial data", () => {
 
   const mainHero = readSource("src/components/home/MainHero.tsx");
   assert.match(mainHero, /grid gap-2 sm:flex sm:flex-wrap/);
-  assert.match(mainHero, /btn-primary w-full sm:w-auto/);
+  assert.match(mainHero, /hidden sm:inline-flex btn-primary sm:w-auto/);
   assert.match(mainHero, /btn-secondary w-full sm:w-auto/);
 
   const quickExplore = readSource("src/components/home/QuickExploreCards.tsx");

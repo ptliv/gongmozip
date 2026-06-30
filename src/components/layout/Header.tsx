@@ -42,7 +42,7 @@ export function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-stone-200 bg-[#f8f5ee]/92 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-zinc-200 bg-white/92 backdrop-blur-md">
       <div className="mx-auto max-w-6xl px-4 sm:px-6">
         <div className="flex h-16 items-center justify-between gap-4">
           <Link href="/" className="group flex items-center gap-2.5" onClick={() => setMobileOpen(false)}>
@@ -65,8 +65,8 @@ export function Header() {
                   className={cn(
                     "inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold transition-colors whitespace-nowrap",
                     active
-                      ? "bg-white text-zinc-950 shadow-sm ring-1 ring-stone-200"
-                      : "text-zinc-600 hover:bg-white/70 hover:text-zinc-950"
+                      ? "bg-zinc-950 text-white shadow-sm"
+                      : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
                   )}
                 >
                   <Icon className="h-3.5 w-3.5" aria-hidden="true" />
@@ -81,7 +81,7 @@ export function Header() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="rounded-md px-2.5 py-1.5 text-xs font-semibold text-zinc-500 transition-colors hover:bg-white hover:text-zinc-900 whitespace-nowrap"
+                className="rounded-md px-2.5 py-1.5 text-xs font-semibold text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 whitespace-nowrap"
               >
                 {link.label}
               </Link>
@@ -93,12 +93,12 @@ export function Header() {
           </div>
 
           <div className="flex items-center gap-1 lg:hidden">
-            <Link href="/contests" className="rounded-lg p-2 text-zinc-600 transition-colors hover:bg-white" aria-label="공고 검색">
+            <Link href="/contests" className="rounded-lg p-2 text-zinc-600 transition-colors hover:bg-zinc-100" aria-label="공고 검색">
               <Search className="h-5 w-5" aria-hidden="true" />
             </Link>
             <button
               type="button"
-              className="rounded-lg p-2 text-zinc-600 transition-colors hover:bg-white"
+              className="rounded-lg p-2 text-zinc-600 transition-colors hover:bg-zinc-100"
               onClick={() => setMobileOpen((open) => !open)}
               aria-label="메뉴 열기"
               aria-expanded={mobileOpen}
@@ -121,7 +121,7 @@ export function Header() {
                     onClick={() => setMobileOpen(false)}
                     className={cn(
                       "flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition-colors",
-                      active ? "bg-white text-zinc-950 shadow-sm" : "text-zinc-600 hover:bg-white"
+                      active ? "bg-zinc-950 text-white shadow-sm" : "text-zinc-600 hover:bg-zinc-100"
                     )}
                   >
                     <Icon className="h-4 w-4" aria-hidden="true" />

@@ -27,7 +27,7 @@ const TRUST_LINKS = [
 
 export function TrustFooter() {
   return (
-    <footer className="mt-auto border-t border-stone-200 bg-[#fffdf8]">
+    <footer className="mt-auto border-t border-zinc-200 bg-white">
       <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
         <div className="grid gap-9 md:grid-cols-[1.4fr_0.75fr_0.75fr_0.85fr]">
           <div>

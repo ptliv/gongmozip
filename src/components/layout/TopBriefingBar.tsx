@@ -18,10 +18,32 @@ function countLabel(value: number): string {
 }
 
 export function TopBriefingBar({ stats }: TopBriefingBarProps) {
+  const mobileItems = [
+    { label: "전체", value: stats.totalCount, href: "/contests", tone: "text-zinc-900" },
+    { label: "오늘", value: stats.endingTodayCount, href: "/deadline", tone: "text-red-600" },
+    { label: "7일", value: stats.endingThisWeekCount, href: "/deadline/7days", tone: "text-orange-600" },
+    { label: "상금", value: stats.highPrizeCount, href: "/contests?q=상금&sort=recommended", tone: "text-amber-700" },
+    { label: "신규", value: stats.newCount, href: "/latest", tone: "text-blue-600" },
+  ] as const;
+
   return (
-    <div className="overflow-hidden border-b border-stone-200 bg-white/95">
-      <div className="mx-auto flex h-10 max-w-6xl items-center justify-between gap-4 overflow-hidden px-4 text-xs sm:px-6">
-        <div className="flex min-w-0 max-w-full items-center gap-3 overflow-x-auto whitespace-nowrap scrollbar-hide">
+    <div className="border-b border-zinc-200 bg-white/95">
+      <div className="mx-auto max-w-6xl px-3 sm:px-6">
+        <div className="flex h-9 items-center gap-2 overflow-x-auto whitespace-nowrap text-[11px] scrollbar-hide sm:hidden">
+          {mobileItems.map((item) => (
+            <Link
+              key={item.label}
+              href={item.href}
+              className="inline-flex flex-shrink-0 items-center gap-1 rounded-md border border-zinc-200 bg-zinc-50 px-2.5 py-1 font-black text-zinc-700"
+            >
+              <span>{item.label}</span>
+              <span className={item.tone}>{countLabel(item.value)}</span>
+            </Link>
+          ))}
+        </div>
+
+        <div className="hidden h-10 items-center justify-between gap-4 overflow-hidden text-xs sm:flex">
+          <div className="flex min-w-0 max-w-full items-center gap-3 overflow-x-auto whitespace-nowrap scrollbar-hide">
           <Link
             href="/contests"
             className="inline-flex flex-shrink-0 items-center gap-1 font-black text-zinc-800 hover:text-amber-800"
@@ -46,16 +68,17 @@ export function TopBriefingBar({ stats }: TopBriefingBarProps) {
           <Link href="/latest" className="flex-shrink-0 font-bold text-blue-600 hover:text-blue-700">
             새로 등록된 공모전 {countLabel(stats.newCount)}
           </Link>
-        </div>
+          </div>
 
-        <div className="hidden flex-shrink-0 items-center gap-3 sm:flex">
-          <Link href="/#briefing" className="font-bold text-zinc-600 hover:text-zinc-950">
-            브리핑
-          </Link>
-          <span className="h-4 w-px bg-stone-200" aria-hidden="true" />
-          <Link href="/#newsletter" className="font-bold text-zinc-600 hover:text-zinc-950">
-            알림받기
-          </Link>
+          <div className="flex flex-shrink-0 items-center gap-3">
+            <Link href="/#briefing" className="font-bold text-zinc-600 hover:text-zinc-950">
+              브리핑
+            </Link>
+            <span className="h-4 w-px bg-stone-200" aria-hidden="true" />
+            <Link href="/#newsletter" className="font-bold text-zinc-600 hover:text-zinc-950">
+              알림받기
+            </Link>
+          </div>
         </div>
       </div>
     </div>
