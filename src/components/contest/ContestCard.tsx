@@ -1,11 +1,9 @@
 import Link from "next/link";
-import Image from "next/image";
 import {
   BarChart3,
   Building2,
   CalendarDays,
   Gift,
-  Image as ImageIcon,
   ShieldCheck,
   Users,
 } from "lucide-react";
@@ -13,6 +11,7 @@ import type { Contest } from "@/types/contest";
 import { BookmarkToggleButton } from "@/components/bookmark/BookmarkToggleButton";
 import { CategoryChip } from "@/components/ui/CategoryChip";
 import { DeadlineBadge } from "@/components/ui/DeadlineBadge";
+import { FallbackImage } from "@/components/ui/FallbackImage";
 import { buildPublicContestAnalysis } from "@/lib/contest-analysis";
 import { formatDate } from "@/lib/date";
 import { getContestPrizeInfo } from "@/lib/prize";
@@ -91,20 +90,12 @@ export function ContestCard({ contest, variant = "default" }: ContestCardProps) 
 
       <Link href={href} className="flex h-full flex-col">
         <div className="relative aspect-[16/9] overflow-hidden rounded-t-lg border-b border-stone-200 bg-stone-100">
-          {posterUrl ? (
-            <Image
-              src={posterUrl}
-              alt={`${contest.title} 포스터`}
-              fill
-              sizes="(min-width: 1024px) 320px, (min-width: 640px) calc(50vw - 40px), calc(100vw - 76px)"
-              quality={60}
-              className="object-cover transition-transform duration-300 group-hover:scale-[1.02]"
-            />
-          ) : (
-            <div className="absolute inset-0 flex items-center justify-center bg-stone-100">
-              <ImageIcon className="h-8 w-8 text-stone-300" />
-            </div>
-          )}
+          <FallbackImage
+            src={posterUrl}
+            alt={`${contest.title} 포스터`}
+            sizes="(min-width: 1024px) 320px, (min-width: 640px) calc(50vw - 40px), calc(100vw - 76px)"
+            imageClassName="transition-transform duration-300 group-hover:scale-[1.02]"
+          />
           {prizeInfo && (
             <div className="absolute left-3 top-3 max-w-[calc(100%-4.5rem)] rounded-md border border-amber-200 bg-amber-100 px-2.5 py-1.5 text-amber-950 shadow-sm">
               <div className="flex items-center gap-1.5">

@@ -182,3 +182,5 @@ test("public contest pages remain cacheable instead of forced dynamic", () => {
     assert.doesNotMatch(source, /force-dynamic/);
   }
 });
+
+require("./public_surface.test.cjs");

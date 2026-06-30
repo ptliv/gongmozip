@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   alternates: { canonical: canonicalUrl("/privacy") },
 };
 
+const ADSENSE_CLIENT_ID = process.env.NEXT_PUBLIC_ADSENSE_CLIENT?.trim() ?? "";
+
 export default function PrivacyPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-10">
@@ -76,7 +78,8 @@ export default function PrivacyPage() {
           있습니다.
         </p>
         <p>
-          공모전집의 AdSense 게시자 식별자는 <b>ca-pub-7242419267984081</b>이며, 광고 판매자
+          공모전집의 AdSense 게시자 식별자는 운영 환경의 <b>NEXT_PUBLIC_ADSENSE_CLIENT</b>
+          {ADSENSE_CLIENT_ID ? <> 값(<b>{ADSENSE_CLIENT_ID}</b>)으로 설정되며</> : " 값으로 설정되며"}, 광고 판매자
           승인 정보는 사이트 루트의 <Link href="/ads.txt" className="text-blue-600 hover:underline">ads.txt</Link>
           에 공개되어 있습니다.
         </p>

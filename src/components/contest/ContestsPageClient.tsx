@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Contest, ContestFilter, DEFAULT_FILTER } from "@/types/contest";
 import { applyFilters, filterFromSearchParams, filterToQueryString } from "@/lib/filters";
+import { AdSlot } from "@/components/ads/AdSlot";
 import { SearchBar } from "./SearchBar";
 import { FilterBar } from "./FilterBar";
 import { ContestList } from "./ContestList";
@@ -123,6 +124,8 @@ export function ContestsPageClient({ initialContests }: Props) {
           </button>
         </div>
       )}
+
+      <AdSlot placement="listBottom" />
     </div>
   );
 }

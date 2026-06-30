@@ -1,5 +1,3 @@
-import Image from "next/image";
-import Link from "next/link";
 import {
   BarChart3,
   Building2,
@@ -13,6 +11,8 @@ import {
   Users,
 } from "lucide-react";
 import { BookmarkToggleButton } from "@/components/bookmark/BookmarkToggleButton";
+import { ShareContestButton } from "@/components/contest/detail/ShareContestButton";
+import { FallbackImage } from "@/components/ui/FallbackImage";
 import type { PublicContestAnalysis } from "@/lib/contest-analysis";
 import { getDaysUntilDeadline, formatDateKo } from "@/lib/date";
 import type { ContestPrizeInfo } from "@/lib/prize";
@@ -108,6 +108,7 @@ export function ContestDecisionHero({
 
           <div className="mt-5 flex flex-wrap gap-2">
             <BookmarkToggleButton item={bookmarkItem} showLabel size="md" />
+            <ShareContestButton title={contest.title} />
             {applyUrl && (
               <a
                 href={applyUrl}
@@ -124,18 +125,15 @@ export function ContestDecisionHero({
         </div>
 
         <aside className="border-t border-stone-200 bg-[#fffdf8] p-5 sm:p-6 lg:border-l lg:border-t-0">
-          {contest.poster_image_url && (
-            <div className="relative mb-5 aspect-[16/10] overflow-hidden rounded-lg border border-stone-200 bg-stone-100">
-              <Image
-                src={contest.poster_image_url}
-                alt={`${contest.title} 포스터`}
-                fill
-                sizes="(min-width: 1024px) 520px, 92vw"
-                className="object-contain"
-                priority
-              />
-            </div>
-          )}
+          <div className="relative mb-5 aspect-[16/10] overflow-hidden rounded-lg border border-stone-200 bg-stone-100">
+            <FallbackImage
+              src={contest.poster_image_url}
+              alt={`${contest.title} 포스터`}
+              sizes="(min-width: 1024px) 520px, 92vw"
+              imageClassName="object-contain"
+              priority
+            />
+          </div>
 
           <div className="rounded-lg border border-stone-200 bg-white p-4">
             <p className="text-xs font-black uppercase tracking-widest text-zinc-500">Before Apply</p>

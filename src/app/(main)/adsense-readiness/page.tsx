@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { CheckCircle2, AlertTriangle, ExternalLink } from "lucide-react";
+import { AlertTriangle, ExternalLink } from "lucide-react";
+import { ReadinessBadge } from "./ReadinessBadge";
+import { STATIC_CHECKS } from "./readiness-checks";
 import { fetchContests } from "@/lib/supabase/contests";
 import { getSiteUrl } from "@/lib/seo";
 
@@ -10,138 +12,7 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-interface CheckItem {
-  label: string;
-  status: "pass" | "warn" | "info";
-  note: string;
-}
-
 const SITE_URL = getSiteUrl();
-
-const STATIC_CHECKS: CheckItem[] = [
-  // ── AdSense 기술 요건 ──────────────────────────────────────
-  {
-    label: "Google AdSense 스크립트",
-    status: "pass",
-    note: "RootLayout <head> · async script · crossOrigin=anonymous · ca-pub-7242419267984081",
-  },
-  {
-    label: "ads.txt",
-    status: "pass",
-    note: "루트 /ads.txt에 google.com, pub-7242419267984081, DIRECT, f08c47fec0942fa0 공개",
-  },
-  {
-    label: "/adsense-readiness noindex",
-    status: "pass",
-    note: "robots: { index: false, follow: false } — 이 페이지는 색인 제외",
-  },
-  // ── 신뢰·정책 페이지 ────────────────────────────────────────
-  {
-    label: "/about 서비스 소개 페이지",
-    status: "pass",
-    note: "정적 페이지 · canonical 설정 · sitemap 포함 · 수집 방식·수정/삭제 요청 안내 포함",
-  },
-  {
-    label: "/privacy 개인정보처리방침",
-    status: "pass",
-    note: "AdSense 쿠키 정책·Google 정책 링크 포함",
-  },
-  {
-    label: "/terms 이용약관",
-    status: "pass",
-    note: "광고 조항·면책 조항 포함",
-  },
-  {
-    label: "/contact 문의하기 (카카오톡 CTA)",
-    status: "pass",
-    note: "이메일 미노출 · 카카오톡 오픈채널 CTA · 수정/삭제 요청·서비스 문의·일반 문의 안내",
-  },
-  {
-    label: "공개 이메일 주소 미노출",
-    status: "pass",
-    note: "공개 UI에 이메일 하드코딩 없음 · 문의는 카카오톡 채널로 통일",
-  },
-  // ── Footer / 탐색 ────────────────────────────────────────────
-  {
-    label: "Footer 신뢰 링크",
-    status: "pass",
-    note: "소개·개인정보·이용약관·문의 — 데스크톱 열 + 모바일 바 양쪽 노출",
-  },
-  // ── SEO / canonical ─────────────────────────────────────────
-  {
-    label: "canonical / metadataBase 도메인 일관성",
-    status: "pass",
-    note: "getSiteUrl() 유틸로 gongmozip.com 통일 · www 혼선 없음 · 상세·목록·정책 페이지 모두 적용",
-  },
-  {
-    label: "robots.txt",
-    status: "pass",
-    note: "Googlebot · AdsBot-Google · Mediapartners-Google 공개 페이지 허용",
-  },
-  {
-    label: "sitemap.xml",
-    status: "pass",
-    note: "홈·목록·공고 상세·신뢰 4개 페이지 포함 · /adsense-readiness 제외",
-  },
-  // ── 콘텐츠 품질 ─────────────────────────────────────────────
-  {
-    label: "공고 상세 — 신청 플랫폼 안내 문구",
-    status: "pass",
-    note: "상세 하단에 '참가 신청 전 최신 모집 요강과 접수 조건 확인' 명시",
-  },
-  {
-    label: "공고 상세 디버그 블록",
-    status: "pass",
-    note: "NEXT_PUBLIC_SHOW_DEBUG_FIELDS=true 일 때만 노출 (운영 기본 숨김)",
-  },
-  {
-    label: "콘텐츠 충분성",
-    status: "pass",
-    note: "공고 상세 200개 이상 + 정책 4개 + 분야·유형·카테고리 페이지",
-  },
-  {
-    label: "가짜 정보 / 허위 광고 없음",
-    status: "pass",
-    note: "실제 공개 데이터 기반 · 허위 리뷰·보증·주소·전화번호 없음",
-  },
-  {
-    label: "회원가입 강제 없음",
-    status: "pass",
-    note: "모든 공개 페이지 로그인 없이 접근 가능",
-  },
-  {
-    label: "모바일 반응형",
-    status: "pass",
-    note: "Tailwind 반응형 레이아웃 전체 적용",
-  },
-  {
-    label: "HTTPS",
-    status: "pass",
-    note: "gongmozip.com — Cloudflare TLS",
-  },
-];
-
-function Badge({ status }: { status: CheckItem["status"] }) {
-  if (status === "pass") {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-        <CheckCircle2 className="w-3 h-3" /> PASS
-      </span>
-    );
-  }
-  if (status === "warn") {
-    return (
-      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
-        <AlertTriangle className="w-3 h-3" /> WARN
-      </span>
-    );
-  }
-  return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-gray-100 text-gray-500 border border-gray-200">
-      INFO
-    </span>
-  );
-}
 
 export default async function AdsenseReadinessPage() {
   const contests = await fetchContests().catch(() => []);
@@ -183,7 +54,7 @@ export default async function AdsenseReadinessPage() {
         <div className="rounded-2xl border border-gray-100 bg-white divide-y divide-gray-50 overflow-hidden shadow-sm">
           {STATIC_CHECKS.map((item) => (
             <div key={item.label} className="flex items-start gap-3 px-5 py-3.5">
-              <Badge status={item.status} />
+              <ReadinessBadge status={item.status} />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-800">{item.label}</p>
                 <p className="text-xs text-gray-500 mt-0.5">{item.note}</p>

@@ -6,6 +6,7 @@ import {
   getRelatedContestsPayload,
   type ContestDetailPayload,
 } from "@/lib/supabase/public-contest-queries";
+import { AdSlot } from "@/components/ads/AdSlot";
 import { ContestAnalysisReport } from "@/components/contest/detail/ContestAnalysisReport";
 import { ContestDecisionHero } from "@/components/contest/detail/ContestDecisionHero";
 import { ContestRemainingSections } from "@/components/contest/detail/ContestRemainingSections";
@@ -197,6 +198,9 @@ export default async function ContestDetailPage({ params }: Props) {
         relatedItems={relatedItems}
         applyUrl={applyUrl}
       />
+
+      <AdSlot placement="detailBottom" />
+
       {process.env.NEXT_PUBLIC_SHOW_DEBUG_FIELDS === "true" && (
         <section className="rounded-2xl border border-amber-100 bg-amber-50 p-6 shadow-sm">
           <h2 className="text-sm font-bold text-amber-700 mb-3">[DEBUG] 상세 페이지 필드</h2>
