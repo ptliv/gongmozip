@@ -28,6 +28,10 @@ coverage/
 dist/
 tsconfig.tsbuildinfo
 .vercel
+__pycache__/
+*.pyc
+.omo/
+scripts/debug/
 
 # local OCI retry launcher config
 scripts/oci-a1-config.json
