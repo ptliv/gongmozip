@@ -107,6 +107,15 @@ test("prize display formats bare won amount and removes unitless small total", (
   assert.equal(info.text, "최고상: 100만원");
 });
 
+test("prize display keeps total prize scale context", () => {
+  const totalPrizeText = "\uc2dc\uc0c1 \uaddc\ubaa8 \ucd1d 4.2\uc5b5 \uc6d0";
+  const info = getContestPrizeInfo(contest({ benefit: { text: totalPrizeText, types: [] } }));
+
+  assert.ok(info);
+  assert.equal(info.amountLabel, "\ucd1d \uc2dc\uc0c1\uaddc\ubaa8 4\uc5b5 2,000\ub9cc\uc6d0");
+  assert.equal(info.text, totalPrizeText);
+});
+
 test("noindex collection pages cap server rendered contest grids", () => {
   const files = [
     ["deadline", "src/app/(main)/deadline/page.tsx", /getDeadlineContestsPayload\(12\)/],

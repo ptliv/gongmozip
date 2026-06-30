@@ -248,11 +248,12 @@ export function getContestPrizeInfo(contest: Contest): ContestPrizeInfo | null {
   if (!isPrizeLike && !hasDisplayableAmount) return null;
   const text = compactPrizeText(sourceText);
   if (!text && amount === null) return null;
+  const amountLabel = amount === null ? null : /(\uc2dc\uc0c1\s*\uaddc\ubaa8|\ucd1d\s*\uc2dc\uc0c1)/.test(sourceText) ? `\ucd1d \uc2dc\uc0c1\uaddc\ubaa8 ${formatKoreanPrizeAmount(amount)}` : formatKoreanPrizeAmount(amount);
 
   return {
     text,
     amount,
-    amountLabel: amount === null ? null : formatKoreanPrizeAmount(amount),
+    amountLabel,
     isPrizeLike,
   };
 }
