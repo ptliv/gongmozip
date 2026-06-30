@@ -1,4 +1,4 @@
-import { Contest } from "@/types/contest";
+import type { Contest } from "@/types/contest";
 import { ContestCard } from "./ContestCard";
 import { EmptyState } from "@/components/ui/EmptyState";
 
@@ -26,7 +26,7 @@ export function ContestList({ contests, onReset }: ContestListProps) {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {contests.map((contest) => (
         <ContestCard key={contest.id} contest={contest} />
       ))}

@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": ".open-next/worker.js",
+  "name": "gongmozip",
+  "account_id": "a077be5107559c3b2a54e75a3b211626",
+  "workers_dev": true,
+  "preview_urls": true,
+  "routes": [
+    { "pattern": "gongmozip.com/*", "zone_id": "fa144277ff193dcfbc260fb1d7478c19" },
+    { "pattern": "www.gongmozip.com/*", "zone_id": "fa144277ff193dcfbc260fb1d7478c19" }
+  ],
+  "compatibility_date": "2026-06-14",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

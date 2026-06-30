@@ -46,7 +46,7 @@ export function GuideSection() {
           {FEATURED_GUIDES.map((guide) => (
             <Link
               key={guide.slug}
-              href={`/guides/${guide.slug}`}
+              href={`/guide/${guide.slug}`}
               className="group rounded-2xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-100 hover:shadow-card-hover"
             >
               <p className="text-[11px] font-bold text-blue-600">{guide.category}</p>

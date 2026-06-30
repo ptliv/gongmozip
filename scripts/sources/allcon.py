@@ -609,7 +609,8 @@ def _parse_allcon_detail_soup(soup: BeautifulSoup) -> Optional[dict]:
     # 시상내역
     for label in ("시상내역", "시상/혜택", "혜택"):
         if label in meta:
-            update["benefit"] = {"text": meta[label], "types": []}
+            benefit_text = meta[label]
+            update["benefit"] = {"prize": benefit_text, "text": benefit_text, "types": []}
             break
 
     # 분야

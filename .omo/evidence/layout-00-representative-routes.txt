@@ -1,0 +1,3 @@
+﻿representative_contest_slug=ssafy-13th-2026
+representative_guide_slug=contest-first-start
+routes=/,/contests,/contests/ssafy-13th-2026,/guides,/guide/contest-first-start,/about,/contact,/privacy,/terms,/robots.txt,/sitemap.xml,/sitemap-noindex.xml

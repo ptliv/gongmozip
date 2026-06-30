@@ -4,6 +4,7 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Contest, ContestFilter, DEFAULT_FILTER } from "@/types/contest";
 import { applyFilters, filterFromSearchParams, filterToQueryString } from "@/lib/filters";
+import { AdSlot } from "@/components/ads/AdSlot";
 import { SearchBar } from "./SearchBar";
 import { FilterBar } from "./FilterBar";
 import { ContestList } from "./ContestList";
@@ -81,15 +82,14 @@ export function ContestsPageClient({ initialContests }: Props) {
 
   return (
     <div className="space-y-5">
-      {/* 검색바 */}
       <SearchBar
         value={filter.search}
         onChange={(v) => updateFilter({ search: v })}
         onSearch={(v) => updateFilter({ search: v })}
+        placeholder="공고명, 주최사, 분야, 제출물로 검색"
         size="md"
       />
 
-      {/* 필터 패널 */}
       <FilterBar
         filter={filter}
         onChange={updateFilter}
@@ -97,7 +97,20 @@ export function ContestsPageClient({ initialContests }: Props) {
         totalCount={filtered.length}
       />
 
-      {/* 공고 목록 */}
+      <div className="report-panel flex flex-col gap-3 bg-[#fffdf8] p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-black text-zinc-950">검토 결과 {filtered.length}개</p>
+          <p className="mt-1 text-xs leading-relaxed text-zinc-500">
+            현재 조건에 맞는 공고 중 {visible.length}개를 먼저 보여줍니다.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <span className="report-chip">정렬 {filter.sort_by}</span>
+          {filter.analysis !== "전체" && <span className="report-chip">판단 {filter.analysis}</span>}
+          {filter.type !== "전체" && <span className="report-chip">유형 {filter.type}</span>}
+        </div>
+      </div>
+
       <ContestList contests={visible} onReset={resetFilter} />
 
       {hasMore && (
@@ -105,12 +118,14 @@ export function ContestsPageClient({ initialContests }: Props) {
           <button
             type="button"
             onClick={() => setVisibleCount((prev) => prev + PAGE_SIZE)}
-            className="px-4 py-2 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+            className="rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-black text-zinc-700 transition-colors hover:border-amber-300 hover:bg-amber-50"
           >
             더 보기 ({filtered.length - visible.length}개 남음)
           </button>
         </div>
       )}
+
+      <AdSlot placement="listBottom" />
     </div>
   );
 }

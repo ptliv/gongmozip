@@ -2,6 +2,7 @@
 crawl_all.py - Run all configured source crawlers and upsert to Supabase.
 """
 
+import argparse
 import os
 import sys
 import time
@@ -10,15 +11,14 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from utils import logger
-from utils.dedupe_report import build_dedupe_report, _print_dedupe_summary
-from utils.supabase_client import (
-    close_expired_contests,
-    get_supabase_client,
-    purge_no_thumbnail_contests,
-    purge_expired_contests,
-    rescore_contests,
-    upsert_contests_bulk,
+from utils.ai_content_enrichment import (
+    AiEnrichmentSettings,
+    enrich_contest_with_vertex_ai,
+    has_vertex_environment,
+    load_ai_enrichment_settings_from_env,
 )
+from utils.crawl_postprocess import log_crawl_final_summary, run_post_crawl_maintenance
+from utils.supabase_client import get_supabase_client, upsert_contests_bulk
 from utils.content_enrichment import enrich_contest_content, is_expired, today_key
 from utils.auto_score import has_valid_thumbnail
 from sources.allcon import fetch_allcon_contests, fetch_allcon_detail
@@ -96,7 +96,11 @@ def _discard_without_thumbnail(source_name: str, contests: list[dict]) -> list[d
     return kept
 
 
-def _enrich_with_detail(source_name: str, contests: list[dict], fetch_detail_fn) -> list[dict]:
+def _enrich_with_detail(
+    source_name: str,
+    contests: list[dict],
+    fetch_detail_fn,
+) -> list[dict]:
     """
     상세 페이지에서 추가 정보를 수집해 contest dict를 업데이트합니다.
 
@@ -145,6 +149,29 @@ def _enrich_with_detail(source_name: str, contests: list[dict], fetch_detail_fn)
     return contests
 
 
+def _enrich_with_ai(
+    source_name: str,
+    contests: list[dict],
+    ai_settings: AiEnrichmentSettings,
+) -> list[dict]:
+    if not contests or not ai_settings.enabled or not has_vertex_environment():
+        return contests
+
+    for index, contest in enumerate(contests, start=1):
+        title_short = contest.get("title", "")[:40]
+        try:
+            outcome = enrich_contest_with_vertex_ai(contest, settings=ai_settings)
+            logger.info(
+                f"[{source_name}][ai] [{index}/{len(contests)}] "
+                f"{outcome.reason}: {title_short}"
+            )
+        except Exception as e:
+            logger.warning(
+                f"[{source_name}][ai] [{index}/{len(contests)}] Gemini 보강 오류: {title_short} — {e}"
+            )
+    return contests
+
+
 def _sample_rows(contests: list[dict], limit: int = 3) -> list[dict]:
     """
     Keep up to `limit` sample rows for final verification report.
@@ -177,6 +204,15 @@ def main():
     total_inserted = 0
     total_updated = 0
     total_failed = 0
+    ai_settings = load_ai_enrichment_settings_from_env()
+    if ai_settings.enabled:
+        if has_vertex_environment():
+            logger.info(f"Gemini 보강 활성화: model={ai_settings.model}")
+        else:
+            logger.warning(
+                "Gemini 보강 요청됨 but Vertex 환경변수 누락: "
+                "GOOGLE_GENAI_USE_VERTEXAI, GOOGLE_CLOUD_PROJECT, GOOGLE_CLOUD_LOCATION"
+            )
 
     for source_name, fetch_fn, fetch_detail_fn in SOURCES:
         logger.info("")
@@ -193,13 +229,18 @@ def main():
 
         # 상세 페이지 보강
         if contests and ENABLE_DETAIL_FETCH:
-            contests = _enrich_with_detail(source_name, contests, fetch_detail_fn)
+            contests = _enrich_with_detail(
+                source_name,
+                contests,
+                fetch_detail_fn,
+            )
 
         result = {"inserted": 0, "updated": 0, "skipped": 0, "errors": 0}
         if contests:
             contests = _status_guard(source_name, contests)
             contests = _discard_expired(source_name, contests)
             contests = _discard_without_thumbnail(source_name, contests)
+            contests = _enrich_with_ai(source_name, contests, ai_settings)
 
         if contests:
             logger.info(f"[{source_name}] DB 저장 시작...")
@@ -244,80 +285,13 @@ def main():
     logger.info(f"  failed  : {total_failed}")
     logger.info("=" * 55)
 
-    logger.info("")
-    logger.info("── 마감 처리 시작 (close_expired_contests) ──")
-    close_summary = {"checked": 0, "updated": 0, "failed": 0}
-    try:
-        close_summary = close_expired_contests(client, source_site=None, dry_run=False)
-    except Exception as e:
-        logger.error(f"마감 처리 중 예외 발생: {e}")
-
-    logger.info("")
-    logger.info("── 마감 공고 폐기 시작 (purge_expired_contests) ──")
-    purge_summary = {"checked": 0, "deleted": 0, "failed": 0}
-    try:
-        purge_summary = purge_expired_contests(client, source_site=None, dry_run=False)
-    except Exception as e:
-        logger.error(f"마감 공고 폐기 중 예외 발생: {e}")
-
-    logger.info("")
-    logger.info("── 썸네일 없는 공고 폐기 시작 (purge_no_thumbnail_contests) ──")
-    thumbnail_summary = {"checked": 0, "deleted": 0, "failed": 0}
-    try:
-        thumbnail_summary = purge_no_thumbnail_contests(client, source_site=None, dry_run=False)
-    except Exception as e:
-        logger.error(f"썸네일 없는 공고 폐기 중 예외 발생: {e}")
-
-    rescore_summary = {"checked": 0, "updated": 0, "failed": 0}
-    try:
-        logger.info("── 자동 리뷰 점수 재계산 시작 (rescore_contests) ──")
-        rescore_summary = rescore_contests(client, source_site=None, dry_run=False)
-    except Exception as e:
-        logger.error(f"자동 리뷰 점수 재계산 중 예외 발생: {e}")
-
-    logger.info("")
-    logger.info("── 중복 후보 탐지 시작 (dedupe_report) ──")
-    dedupe_summary = {"candidates": 0, "sample_pairs": []}
-    try:
-        source_names = [name for name, *_ in SOURCES]
-        dedupe_summary = build_dedupe_report(
-            client,
-            source_sites=source_names,
-            limit=10,
-        )
-        _print_dedupe_summary(dedupe_summary)
-    except Exception as e:
-        logger.error(f"중복 후보 탐지 중 예외 발생: {e}")
-
-    logger.info("")
-    logger.info("=== CRAWL ALL FINAL SUMMARY ===")
-    logger.info("sources:")
-    for s in source_summaries:
-        logger.info(
-            f"  - {s['source']}: inserted={s['inserted']}, "
-            f"updated={s['updated']}, skipped={s.get('skipped', 0)}, "
-            f"failed={s['failed']}, collected={s['collected']}"
-        )
-    logger.info("close_expired:")
-    logger.info(f"  checked={close_summary.get('checked', 0)}")
-    logger.info(f"  updated={close_summary.get('updated', 0)}")
-    logger.info(f"  failed={close_summary.get('failed', 0)}")
-    logger.info("purge_expired:")
-    logger.info(f"  checked={purge_summary.get('checked', 0)}")
-    logger.info(f"  deleted={purge_summary.get('deleted', 0)}")
-    logger.info(f"  failed={purge_summary.get('failed', 0)}")
-    logger.info("purge_no_thumbnail:")
-    logger.info(f"  checked={thumbnail_summary.get('checked', 0)}")
-    logger.info(f"  deleted={thumbnail_summary.get('deleted', 0)}")
-    logger.info(f"  failed={thumbnail_summary.get('failed', 0)}")
-    logger.info("review_score:")
-    logger.info(f"  checked={rescore_summary.get('checked', 0)}")
-    logger.info(f"  updated={rescore_summary.get('updated', 0)}")
-    logger.info(f"  failed={rescore_summary.get('failed', 0)}")
-    logger.info("duplicates:")
-    logger.info(f"  candidates={dedupe_summary.get('candidates', 0)}")
-    logger.info(f"  sample_pairs={len(dedupe_summary.get('sample_pairs', []) or [])}")
+    source_names = [name for name, *_ in SOURCES]
+    maintenance_summary = run_post_crawl_maintenance(client, source_names)
+    log_crawl_final_summary(source_summaries, maintenance_summary)
 
 
 if __name__ == "__main__":
+    argparse.ArgumentParser(
+        description="Run all configured contest crawlers and optional Gemini enrichment.",
+    ).parse_args()
     main()

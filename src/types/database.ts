@@ -42,7 +42,7 @@ export interface ContestRow {
   apply_start_at: string;            // date → ISO string "YYYY-MM-DD"
   apply_end_at: string;
   status: ContestStatus;
-  benefit: { prize?: string; types: BenefitType[] }; // jsonb
+  benefit: { prize?: string; text?: string; types: BenefitType[] }; // jsonb
   official_source_url: string;
   aggregator_source_url: string | null;
   source_site?: string | null;
@@ -51,6 +51,7 @@ export interface ContestRow {
   external_id?: string | null;
   raw_payload?: Record<string, unknown> | null;
   crawled_at?: string | null;
+  source_checked_at?: string | null;
   is_verified?: boolean;
   verified_level: VerifiedLevel;     // smallint 0-3
   review_score?: number | null;      // smallint 0-100, 크롤러 자동 산출 (수동 등록 공고는 null)

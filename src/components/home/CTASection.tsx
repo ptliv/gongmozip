@@ -1,44 +1,47 @@
 import Link from "next/link";
-import { ArrowRight, Zap } from "lucide-react";
+import { ArrowRight, BookOpenCheck, FileSearch, ShieldCheck } from "lucide-react";
+
+const TRUST_POINTS = [
+  { label: "원문 기준", description: "공식 출처와 모집 요강을 우선 확인합니다.", icon: ShieldCheck },
+  { label: "준비 연결", description: "공고별로 필요한 준비 가이드를 이어 봅니다.", icon: BookOpenCheck },
+  { label: "검토 루틴", description: "마감 전 확인할 항목을 빠르게 점검합니다.", icon: FileSearch },
+] as const;
 
 export function CTASection() {
   return (
     <section className="py-12">
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-blue-700 to-violet-700 p-8 sm:p-12 text-white">
-        {/* 배경 장식 */}
-        <div className="absolute top-0 right-0 w-72 h-72 rounded-full bg-white/5 -translate-y-1/2 translate-x-1/3 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-56 h-56 rounded-full bg-white/5 translate-y-1/3 -translate-x-1/4 pointer-events-none" />
-        <div className="absolute top-1/2 right-1/4 w-32 h-32 rounded-full bg-violet-400/10 blur-2xl pointer-events-none" />
-
-        <div className="relative max-w-xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white/15 border border-white/20 text-xs font-semibold text-blue-100 mb-5 backdrop-blur-sm">
-            <Zap className="w-3.5 h-3.5" />
-            지금 바로 찾아보세요
+      <div className="report-panel overflow-hidden bg-[#fffdf8]">
+        <div className="grid gap-6 p-6 sm:p-8 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
+          <div>
+            <p className="text-xs font-black uppercase tracking-widest text-amber-700">Next Check</p>
+            <h2 className="mt-2 text-2xl font-black leading-tight text-zinc-950 sm:text-3xl">
+              오늘 지원할 공고를 고른 뒤, 제출 전 체크까지 이어가세요
+            </h2>
+            <p className="mt-3 text-sm leading-relaxed text-zinc-600">
+              목록에서 조건을 좁히고 상세 페이지에서 원문, 일정, 제출물, 준비 가이드를 함께 확인하는 흐름으로 구성했습니다.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <Link href="/contests?sort=recommended" className="btn-primary">
+                지원 가치순 보기
+                <ArrowRight className="h-4 w-4" />
+              </Link>
+              <Link href="/guides" className="btn-secondary">
+                준비 가이드
+              </Link>
+            </div>
           </div>
-          <h2 className="text-2xl sm:text-3xl font-bold mb-3 leading-snug">
-            원하는 공고를
-            <br />
-            지금 바로 찾아보세요
-          </h2>
-          <p className="text-blue-200 text-sm sm:text-base leading-relaxed mb-7">
-            다양한 필터와 검색으로 나에게 맞는
-            <br className="hidden sm:block" />
-            공모전·대외활동을 빠르게 찾을 수 있습니다.
-          </p>
-          <div className="flex flex-wrap gap-3">
-            <Link
-              href="/contests"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white text-blue-700 text-sm font-bold hover:bg-blue-50 active:scale-95 transition-all shadow-sm"
-            >
-              공고 전체 보기
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-            <Link
-              href="/deadline"
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white/15 border border-white/20 text-white text-sm font-semibold hover:bg-white/25 active:scale-95 transition-all backdrop-blur-sm"
-            >
-              마감 임박 공고
-            </Link>
+
+          <div className="grid gap-3 sm:grid-cols-3">
+            {TRUST_POINTS.map((point) => {
+              const Icon = point.icon;
+              return (
+                <div key={point.label} className="rounded-lg border border-stone-200 bg-white p-4">
+                  <Icon className="h-5 w-5 text-amber-700" />
+                  <p className="mt-3 text-sm font-black text-zinc-950">{point.label}</p>
+                  <p className="mt-1 text-xs leading-relaxed text-zinc-500">{point.description}</p>
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

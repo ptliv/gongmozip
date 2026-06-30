@@ -1,5 +1,5 @@
-const FALLBACK_SITE_URL = "https://www.gongmozip.com";
-const FALLBACK_ALTERNATE_SITE_URLS = ["https://gongmozip.com"];
+const FALLBACK_SITE_URL = "https://gongmozip.com";
+const FALLBACK_ALTERNATE_SITE_URLS = ["https://www.gongmozip.com"];
 
 function normalizeSiteUrl(value?: string | null): string | null {
   const url = value?.trim().replace(/\/$/, "");

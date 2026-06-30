@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   alternates: { canonical: canonicalUrl("/privacy") },
 };
 
+const ADSENSE_CLIENT_ID = process.env.NEXT_PUBLIC_ADSENSE_CLIENT?.trim() ?? "";
+
 export default function PrivacyPage() {
   return (
     <div className="max-w-3xl mx-auto px-4 sm:px-6 py-12 space-y-10">
@@ -69,6 +71,18 @@ export default function PrivacyPage() {
           서비스는 Google AdSense를 통해 광고를 게재합니다. Google은 서비스 이용 정보와 쿠키를 바탕으로
           사용자 관심사에 맞는 광고를 표시할 수 있습니다.
         </p>
+        <p>
+          Google을 포함한 제3자 광고 사업자는 이용자의 이전 웹사이트 방문 기록 또는 앱 사용 기록을
+          바탕으로 광고를 게재하기 위해 쿠키 또는 유사 기술을 사용할 수 있습니다. Google은 광고 쿠키를
+          사용하여 이용자가 본 서비스와 다른 사이트를 방문한 정보를 기반으로 맞춤 광고를 제공할 수
+          있습니다.
+        </p>
+        <p>
+          공모전집의 AdSense 게시자 식별자는 운영 환경의 <b>NEXT_PUBLIC_ADSENSE_CLIENT</b>
+          {ADSENSE_CLIENT_ID ? <> 값(<b>{ADSENSE_CLIENT_ID}</b>)으로 설정되며</> : " 값으로 설정되며"}, 광고 판매자
+          승인 정보는 사이트 루트의 <Link href="/ads.txt" className="text-blue-600 hover:underline">ads.txt</Link>
+          에 공개되어 있습니다.
+        </p>
         <ul>
           <li>
             Google의 개인정보처리방침:{" "}
@@ -90,6 +104,28 @@ export default function PrivacyPage() {
               className="text-blue-600 hover:underline"
             >
               adssettings.google.com
+            </a>
+          </li>
+          <li>
+            Google 광고 기술 제공업체 확인:{" "}
+            <a
+              href="https://support.google.com/admanager/answer/9012903"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline"
+            >
+              support.google.com/admanager/answer/9012903
+            </a>
+          </li>
+          <li>
+            네트워크 광고 선택 해제 안내:{" "}
+            <a
+              href="https://www.aboutads.info/choices/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline"
+            >
+              aboutads.info/choices
             </a>
           </li>
         </ul>

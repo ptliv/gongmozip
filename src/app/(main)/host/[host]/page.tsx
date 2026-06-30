@@ -4,29 +4,24 @@ import {
   getHostContestsPayload,
 } from "@/lib/supabase/public-contest-queries";
 import { canonicalUrl } from "@/lib/seo";
+import { NOINDEX_FOLLOW_ROBOTS } from "@/lib/indexing";
 
 interface Props {
   params: { host: string };
 }
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 function getFallbackLabel(hostSlug: string): string {
   return decodeURIComponent(hostSlug) || "주최";
 }
 
-export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const payload = await getHostContestsPayload(params.host, 1).catch(() => ({
-    ok: false,
-    host: getFallbackLabel(params.host),
-    items: [],
-  }));
-  const label = payload.host || getFallbackLabel(params.host);
-  const hasItems = payload.ok && payload.items.length > 0;
+export function generateMetadata({ params }: Props): Metadata {
+  const label = getFallbackLabel(params.host);
   return {
     title: `${label} 공고`,
     description: `${label} 주최/주관 공고 목록입니다.`,
-    robots: hasItems ? undefined : { index: false, follow: true },
+    robots: NOINDEX_FOLLOW_ROBOTS,
     alternates: {
       canonical: canonicalUrl(`/host/${params.host}`),
     },
@@ -34,7 +29,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 }
 
 export default async function HostPage({ params }: Props) {
-  const payload = await getHostContestsPayload(params.host, 500).catch((error: unknown) => {
+  const payload = await getHostContestsPayload(params.host, 12).catch((error: unknown) => {
     console.error("[HostPage] getHostContestsPayload failed:", error);
     return {
       ok: false,

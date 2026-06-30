@@ -564,7 +564,8 @@ def fetch_campuspick_detail(contest: dict) -> Optional[dict]:
     if prize_total and prize_total not in ("0", "None"):
         benefit_parts.append(f"총상금: {prize_total}")
     if benefit_parts:
-        update["benefit"] = {"text": " / ".join(benefit_parts), "types": []}
+        benefit_text = " / ".join(benefit_parts)
+        update["benefit"] = {"prize": benefit_text, "text": benefit_text, "types": []}
 
     # 상세 설명
     description = data.get("description")

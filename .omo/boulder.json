@@ -1,0 +1,36 @@
+{
+  "schema_version": 2,
+  "active_work_id": "gongmozip-platform-redesign-20260630",
+  "works": {
+    "gongmozip-crawl-gemini-pipeline": {
+      "work_id": "gongmozip-crawl-gemini-pipeline",
+      "active_plan": ".omo/plans/gongmozip-crawl-gemini-pipeline.md",
+      "plan_name": "gongmozip-crawl-gemini-pipeline",
+      "session_ids": [
+        "codex:current"
+      ],
+      "status": "completed",
+      "worktree_path": null
+    },
+    "gongmozip-layout-redesign": {
+      "work_id": "gongmozip-layout-redesign",
+      "active_plan": ".omo/plans/gongmozip-layout-redesign.md",
+      "plan_name": "gongmozip-layout-redesign",
+      "session_ids": [
+        "codex:current"
+      ],
+      "status": "completed",
+      "worktree_path": null
+    },
+    "gongmozip-platform-redesign-20260630": {
+      "work_id": "gongmozip-platform-redesign-20260630",
+      "active_plan": ".omo/plans/gongmozip-platform-redesign-20260630.md",
+      "plan_name": "gongmozip-platform-redesign-20260630",
+      "session_ids": [
+        "codex:current"
+      ],
+      "status": "completed",
+      "worktree_path": null
+    }
+  }
+}

@@ -9,6 +9,7 @@ import {
   parseContestSlugSuffix,
 } from "@/lib/slug";
 import { buildContestSummary, cleanContestText, hasContestTextNoise } from "@/lib/contest-text";
+import { dedupePublicContests } from "@/lib/contest-dedupe";
 
 const CONTEST_SELECT = `
   id, slug, title, organizer, summary, description, poster_image_url,
@@ -141,6 +142,7 @@ export function normalizeContestRow(row: Partial<ContestRow>): Contest {
     external_id: (row.external_id as string | null) ?? null,
     raw_payload: (row.raw_payload as Record<string, unknown> | null) ?? null,
     crawled_at: (row.crawled_at as string | null) ?? null,
+    source_checked_at: (row.source_checked_at as string | null) ?? null,
     is_verified: Boolean(row.is_verified),
     verified_level: Number(row.verified_level ?? 0) as Contest["verified_level"],
     review_score: row.review_score != null ? Number(row.review_score) : null,
@@ -151,7 +153,7 @@ export function normalizeContestRow(row: Partial<ContestRow>): Contest {
 }
 
 export async function fetchContests(
-  filter?: Partial<ContestFilter> & { verified_only?: boolean }
+  filter?: Partial<ContestFilter> & { limit?: number; verified_only?: boolean }
 ): Promise<Contest[]> {
   const supabase = createServerClient();
 
@@ -195,12 +197,17 @@ export async function fetchContests(
     query = query.order("created_at", { ascending: false });
   }
 
+  if (filter?.limit) {
+    const safeLimit = Math.max(1, Math.min(Number(filter.limit) || 100, 500));
+    query = query.limit(safeLimit);
+  }
+
   const { data, error } = await query;
   if (error) throw new Error(`[fetchContests] ${error.message}`);
   const contests = ((data ?? []) as ContestRow[]).map((row) => normalizeContestRow(row));
   if (filter?.verified_only !== true) return contests;
 
-  return contests.filter(isPublicContest).map((contest) => ({
+  return dedupePublicContests(contests.filter(isPublicContest)).map((contest) => ({
     ...contest,
     description: hasContestTextNoise(contest.description) ? contest.summary : contest.description,
     raw_payload: null,

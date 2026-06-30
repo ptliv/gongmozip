@@ -131,7 +131,8 @@ function contestSubject(input: Partial<Contest>): string {
 function focusText(input: Partial<Contest>, text: string): string {
   const haystack = `${text} ${input.title || ""} ${input.type || ""} ${input.category || ""} ${input.field || ""}`.toLowerCase();
 
-  if (input.benefit?.prize) return `${input.benefit.prize} 등 혜택 조건`;
+  const benefitText = input.benefit?.prize || input.benefit?.text;
+  if (benefitText) return `${benefitText} 등 혜택 조건`;
   if (/(인턴|직무|채용|실무)/.test(haystack)) return "직무 경험과 지원 동기";
   if (/(서포터즈|기자단|대외활동|sns|콘텐츠)/.test(haystack)) return "활동 가능 시간과 콘텐츠 제작 경험";
   if (/(디자인|영상|포스터|사진|작품|예술|문화)/.test(haystack)) return "작품 콘셉트와 제출 파일 형식";

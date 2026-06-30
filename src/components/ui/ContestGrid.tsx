@@ -6,6 +6,8 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { Contest } from "@/types/contest";
 import { ContestCard } from "@/components/contest/ContestCard";
+import { StructuredData } from "@/components/seo/StructuredData";
+import { canonicalUrl } from "@/lib/seo";
 
 interface ContestGridProps {
   contests: Contest[];
@@ -39,10 +41,24 @@ export function ContestGrid({
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {contests.map((c) => (
-        <ContestCard key={c.id} contest={c} />
-      ))}
-    </div>
+    <>
+      <StructuredData
+        data={{
+          "@context": "https://schema.org",
+          "@type": "ItemList",
+          itemListElement: contests.slice(0, 50).map((contest, index) => ({
+            "@type": "ListItem",
+            position: index + 1,
+            url: canonicalUrl(`/contests/${encodeURIComponent(contest.slug)}`),
+            name: contest.title,
+          })),
+        }}
+      />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {contests.map((c) => (
+          <ContestCard key={c.id} contest={c} />
+        ))}
+      </div>
+    </>
   );
 }

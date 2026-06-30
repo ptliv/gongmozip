@@ -1,38 +1,28 @@
 "use client";
 
 import { useState } from "react";
-import {
-  SlidersHorizontal,
-  ChevronDown,
-  X,
-  RotateCcw,
-  ChevronUp,
-} from "lucide-react";
-import { ContestFilter, SortBy } from "@/types/contest";
+import { ChevronDown, ChevronUp, RotateCcw, SlidersHorizontal, X } from "lucide-react";
+import type { ContestFilter, SortBy } from "@/types/contest";
 import { cn } from "@/lib/utils";
 import {
-  TYPE_OPTIONS,
+  ANALYSIS_FILTER_OPTIONS,
   CATEGORY_OPTIONS,
   FIELD_OPTIONS,
-  TARGET_OPTIONS,
-  STATUS_OPTIONS,
+  FilterOption,
   ONLINE_OFFLINE_FILTER_OPTIONS,
-  ANALYSIS_FILTER_OPTIONS,
   SORT_OPTIONS,
+  STATUS_OPTIONS,
+  TARGET_OPTIONS,
+  TYPE_OPTIONS,
   countActiveFilters,
   hasActiveFilters,
-  FilterOption,
 } from "@/lib/filters";
 
-// ----------------------------------------------------------
-// 외부 인터페이스
-// ----------------------------------------------------------
-
 interface FilterBarProps {
-  filter: ContestFilter;
-  onChange: (partial: Partial<ContestFilter>) => void;
-  onReset: () => void;
-  totalCount: number;
+  readonly filter: ContestFilter;
+  readonly onChange: (partial: Partial<ContestFilter>) => void;
+  readonly onReset: () => void;
+  readonly totalCount: number;
 }
 
 const FILTER_GROUPS = [
@@ -42,12 +32,8 @@ const FILTER_GROUPS = [
   { key: "target" as const, label: "대상", options: TARGET_OPTIONS },
   { key: "status" as const, label: "상태", options: STATUS_OPTIONS },
   { key: "online_offline" as const, label: "방식", options: ONLINE_OFFLINE_FILTER_OPTIONS },
-  { key: "analysis" as const, label: "분석", options: ANALYSIS_FILTER_OPTIONS },
+  { key: "analysis" as const, label: "판단", options: ANALYSIS_FILTER_OPTIONS },
 ] as const;
-
-// ----------------------------------------------------------
-// 메인 컴포넌트
-// ----------------------------------------------------------
 
 export function FilterBar({ filter, onChange, onReset, totalCount }: FilterBarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -55,134 +41,119 @@ export function FilterBar({ filter, onChange, onReset, totalCount }: FilterBarPr
   const isActive = hasActiveFilters(filter);
 
   return (
-    <div className="rounded-2xl border border-gray-100 bg-white overflow-hidden shadow-sm">
-      {/* ── 상단 요약 바 ── */}
-      <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-100">
+    <section className="report-panel overflow-hidden">
+      <div className="flex flex-col gap-3 border-b border-stone-200 bg-[#fffdf8] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2">
-          {/* 모바일 토글 */}
           <button
-            onClick={() => setMobileOpen((v) => !v)}
+            type="button"
+            onClick={() => setMobileOpen((open) => !open)}
             className={cn(
-              "md:hidden inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all duration-150 active:scale-95",
-              mobileOpen || isActive
-                ? "bg-blue-600 text-white shadow-sm"
-                : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              "inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-black transition-colors md:hidden",
+              mobileOpen || isActive ? "bg-zinc-900 text-white" : "bg-stone-100 text-zinc-700"
             )}
           >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <SlidersHorizontal className="h-3.5 w-3.5" />
             필터
             {activeCount > 0 && (
-              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-white text-blue-600 text-[10px] font-bold">
+              <span className="rounded-md bg-white px-1.5 py-0.5 text-[10px] font-black text-zinc-900">
                 {activeCount}
               </span>
             )}
-            {mobileOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+            {mobileOpen ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
           </button>
 
-          {/* 데스크톱 레이블 */}
-          <span className="hidden md:flex items-center gap-1.5 text-sm font-semibold text-gray-700">
-            <SlidersHorizontal className="w-4 h-4 text-blue-500" />
-            필터
+          <span className="hidden items-center gap-2 text-sm font-black text-zinc-800 md:inline-flex">
+            <SlidersHorizontal className="h-4 w-4 text-amber-700" />
+            공고 판단 필터
             {activeCount > 0 && (
-              <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-[11px] font-bold">
+              <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] text-amber-900">
                 {activeCount}개 적용
               </span>
             )}
           </span>
 
-          {/* 초기화 버튼 */}
           {isActive && (
             <button
+              type="button"
               onClick={onReset}
-              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium text-gray-500 hover:text-red-500 hover:bg-red-50 active:scale-95 transition-all duration-150"
+              className="inline-flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-bold text-zinc-500 transition-colors hover:bg-rose-50 hover:text-rose-600"
             >
-              <RotateCcw className="w-3 h-3" />
+              <RotateCcw className="h-3 w-3" />
               초기화
             </button>
           )}
         </div>
 
-        {/* 결과 수 + 정렬 */}
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-gray-500">
-            총{" "}
-            <strong className="text-gray-900 font-bold">{totalCount}</strong>개
+        <div className="flex items-center justify-between gap-3 sm:justify-end">
+          <span className="text-sm font-semibold text-zinc-500">
+            총 <strong className="font-black text-zinc-950">{totalCount}</strong>개
           </span>
-          <SortSelector value={filter.sort_by} onChange={(v) => onChange({ sort_by: v })} />
+          <SortSelector value={filter.sort_by} onChange={(value) => onChange({ sort_by: value })} />
         </div>
       </div>
 
-      {/* ── 필터 패널 ── */}
       <div className={cn("md:block", mobileOpen ? "block" : "hidden")}>
-        <div className="px-4 py-3 space-y-2.5">
+        <div className="grid gap-2.5 px-4 py-4">
           {FILTER_GROUPS.map((group) => (
             <FilterGroupRow
               key={group.key}
               label={group.label}
               options={group.options as FilterOption<string>[]}
               activeValue={filter[group.key]}
-              onSelect={(v) => onChange({ [group.key]: v } as Partial<ContestFilter>)}
+              onSelect={(value) => onChange({ [group.key]: value } as Partial<ContestFilter>)}
             />
           ))}
         </div>
 
-        {/* 모바일 하단 버튼 */}
         {mobileOpen && (
-          <div className="md:hidden flex items-center justify-between px-4 py-3 border-t border-gray-100 bg-gray-50/50">
-            <button
-              onClick={onReset}
-              className="text-sm text-gray-400 hover:text-red-500 transition-colors font-medium"
-            >
+          <div className="flex items-center justify-between border-t border-stone-200 bg-stone-50 px-4 py-3 md:hidden">
+            <button type="button" onClick={onReset} className="text-sm font-bold text-zinc-500">
               전체 초기화
             </button>
             <button
+              type="button"
               onClick={() => setMobileOpen(false)}
-              className="px-5 py-2 rounded-xl bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700 active:scale-95 transition-all shadow-sm"
+              className="rounded-lg bg-zinc-900 px-5 py-2 text-sm font-black text-white"
             >
               {totalCount}개 보기
             </button>
           </div>
         )}
       </div>
-    </div>
+    </section>
   );
 }
 
-// ----------------------------------------------------------
-// 서브 컴포넌트: 필터 그룹 한 행
-// ----------------------------------------------------------
-
 interface FilterGroupRowProps {
-  label: string;
-  options: FilterOption<string>[];
-  activeValue: string;
-  onSelect: (value: string) => void;
+  readonly label: string;
+  readonly options: FilterOption<string>[];
+  readonly activeValue: string;
+  readonly onSelect: (value: string) => void;
 }
 
 function FilterGroupRow({ label, options, activeValue, onSelect }: FilterGroupRowProps) {
   return (
-    <div className="flex items-start gap-3 min-w-0">
-      <span className="flex-shrink-0 w-12 pt-0.5 text-[11px] font-semibold text-gray-400 text-right leading-5">
+    <div className="grid gap-2 md:grid-cols-[4.25rem_1fr] md:items-start">
+      <span className="pt-1 text-[11px] font-black uppercase tracking-widest text-zinc-400 md:text-right">
         {label}
       </span>
-
-      <div className="flex flex-wrap gap-1.5 overflow-x-auto pb-0.5 scrollbar-hide">
-        {options.map((opt) => {
-          const isFilterActive = activeValue === opt.value;
+      <div className="flex gap-1.5 overflow-x-auto pb-0.5 md:flex-wrap md:overflow-visible">
+        {options.map((option) => {
+          const active = activeValue === option.value;
           return (
             <button
-              key={opt.value}
-              onClick={() => onSelect(opt.value)}
+              key={option.value}
+              type="button"
+              onClick={() => onSelect(option.value)}
               className={cn(
-                "flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium transition-all duration-150 active:scale-95",
-                isFilterActive
-                  ? "bg-blue-600 text-white shadow-sm ring-2 ring-blue-600/20 ring-offset-1"
-                  : "bg-gray-100 text-gray-600 hover:bg-gray-200 hover:text-gray-800"
+                "inline-flex flex-shrink-0 items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-bold transition-colors",
+                active
+                  ? "border-zinc-900 bg-zinc-900 text-white"
+                  : "border-stone-200 bg-stone-50 text-zinc-600 hover:border-amber-300 hover:bg-amber-50 hover:text-amber-900"
               )}
             >
-              {opt.emoji && <span className="text-[10px]">{opt.emoji}</span>}
-              {opt.label}
-              {isFilterActive && <X className="w-2.5 h-2.5 ml-0.5 opacity-80" />}
+              {option.label}
+              {active && <X className="h-3 w-3 opacity-80" />}
             </button>
           );
         })}
@@ -191,30 +162,27 @@ function FilterGroupRow({ label, options, activeValue, onSelect }: FilterGroupRo
   );
 }
 
-// ----------------------------------------------------------
-// 서브 컴포넌트: 정렬 드롭다운
-// ----------------------------------------------------------
-
-function SortSelector({ value, onChange }: { value: SortBy; onChange: (v: SortBy) => void }) {
+function SortSelector({
+  value,
+  onChange,
+}: {
+  readonly value: SortBy;
+  readonly onChange: (value: SortBy) => void;
+}) {
   return (
     <div className="relative">
       <select
         value={value}
-        onChange={(e) => onChange(e.target.value as SortBy)}
-        className={cn(
-          "appearance-none pl-3 pr-7 py-1.5 rounded-xl border border-gray-200",
-          "text-sm text-gray-700 bg-white cursor-pointer font-medium",
-          "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
-          "hover:border-gray-300 transition-colors"
-        )}
+        onChange={(event) => onChange(event.target.value as SortBy)}
+        className="appearance-none rounded-lg border border-stone-200 bg-white py-2 pl-3 pr-8 text-sm font-bold text-zinc-700 transition-colors hover:border-amber-300 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-amber-500"
       >
-        {SORT_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label}
+        {SORT_OPTIONS.map((option) => (
+          <option key={option.value} value={option.value}>
+            {option.label}
           </option>
         ))}
       </select>
-      <ChevronDown className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+      <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-zinc-400" />
     </div>
   );
 }

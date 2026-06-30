@@ -6,8 +6,9 @@ import { CONTEST_TYPES, ContestType } from "@/types/contest";
 import { fetchContests } from "@/lib/supabase/contests";
 import { ContestGrid } from "@/components/ui/ContestGrid";
 import { canonicalUrl } from "@/lib/seo";
+import { NOINDEX_FOLLOW_ROBOTS } from "@/lib/indexing";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 300;
 
 interface Props {
   params: { type: string };
@@ -23,11 +24,10 @@ function getType(raw: string): ContestType | null {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const type = getType(params.type);
   if (!type) return {};
-  const contests = await fetchContests({ type, verified_only: true }).catch(() => []);
   return {
     title: `${type} 공고 목록`,
     description: `${type} 관련 공모전·대외활동 공고를 한눈에 확인하세요.`,
-    robots: contests.length > 0 ? undefined : { index: false, follow: true },
+    robots: NOINDEX_FOLLOW_ROBOTS,
     alternates: {
       canonical: canonicalUrl(`/type/${encodeURIComponent(type)}`),
     },
@@ -38,7 +38,7 @@ export default async function TypePage({ params }: Props) {
   const type = getType(params.type);
   if (!type) notFound();
 
-  const contests = await fetchContests({ type, verified_only: true }).catch((e: unknown) => {
+  const contests = await fetchContests({ type, verified_only: true, limit: 12 }).catch((e: unknown) => {
     console.error("[TypePage] fetchContests 실패:", e);
     return [];
   });

@@ -57,6 +57,7 @@ create table if not exists contests (
   -- 메타
   verified_level        smallint      not null default 0,
   review_score          smallint,                              -- 자동 품질 점수 0~100 (크롤러 산출, 수동 등록은 null)
+  source_checked_at     timestamptz,                            -- 공식/원문 정보 최종 확인 시각
   view_count            integer       not null default 0,
   created_at            timestamptz   not null default now(),
   updated_at            timestamptz   not null default now()
@@ -66,6 +67,7 @@ comment on table contests is '공모전·대외활동 공고 테이블';
 comment on column contests.benefit is 'JSONB: { prize?: string, types: BenefitType[] }';
 comment on column contests.verified_level is '0=미검증/검수대기 1=자동공개(75점↑+상세설명 충족) or URL확인 2=운영자검토완료 3=공식제휴';
 comment on column contests.review_score is '자동 품질 점수 0~100. 크롤러 upsert 시 계산. 수동 등록 공고는 null.';
+comment on column contests.source_checked_at is '공식 공고 또는 원문 정보를 마지막으로 확인한 시각. 색인 허용 판단과 상세 페이지 최종 확인일 표시에 사용한다.';
 
 
 -- ----------------------------------------------------------
@@ -102,6 +104,7 @@ create index if not exists idx_contests_category      on contests (category);
 create index if not exists idx_contests_apply_end_at  on contests (apply_end_at);
 create index if not exists idx_contests_created_at    on contests (created_at desc);
 create index if not exists idx_contests_verified_level on contests (verified_level);
+create index if not exists idx_contests_source_checked_at on contests (source_checked_at desc);
 
 -- target 배열 검색 (contains 쿼리)
 create index if not exists idx_contests_target on contests using gin (target);

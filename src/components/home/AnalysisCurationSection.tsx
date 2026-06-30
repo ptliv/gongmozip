@@ -9,47 +9,70 @@ import {
 } from "lucide-react";
 import type { Contest } from "@/types/contest";
 import { ContestCard } from "@/components/contest/ContestCard";
-import { buildPublicContestAnalysis } from "@/lib/contest-analysis";
+import {
+  buildPublicContestAnalysis,
+  type PublicContestAnalysis,
+} from "@/lib/contest-analysis";
 import { getDaysUntilDeadline } from "@/lib/date";
 
 interface AnalysisCurationSectionProps {
-  contests: Contest[];
+  readonly contests: readonly Contest[];
 }
 
-function uniqueById(items: Contest[], limit: number): Contest[] {
+interface AnalysisCurationItem {
+  readonly contest: Contest;
+  readonly analysis: PublicContestAnalysis;
+}
+
+const ANALYSIS_POOL_LIMIT = 24;
+
+function reviewScore(contest: Contest): number {
+  return Number.isFinite(contest.review_score) ? contest.review_score ?? 0 : 0;
+}
+
+function compareByHomeScore(a: Contest, b: Contest): number {
+  return (
+    reviewScore(b) - reviewScore(a) ||
+    new Date(a.apply_end_at).getTime() - new Date(b.apply_end_at).getTime()
+  );
+}
+
+function buildAnalysisPool(contests: readonly Contest[]): AnalysisCurationItem[] {
+  return [...contests]
+    .sort(compareByHomeScore)
+    .slice(0, ANALYSIS_POOL_LIMIT)
+    .map((contest) => ({
+      contest,
+      analysis: buildPublicContestAnalysis(contest),
+    }));
+}
+
+function uniqueById(items: readonly AnalysisCurationItem[], limit: number): Contest[] {
   const seen = new Set<string>();
   const result: Contest[] = [];
 
   for (const item of items) {
-    if (seen.has(item.id)) continue;
-    seen.add(item.id);
-    result.push(item);
+    if (seen.has(item.contest.id)) continue;
+    seen.add(item.contest.id);
+    result.push(item.contest);
     if (result.length >= limit) break;
   }
 
   return result;
 }
 
-function byScoreDesc(items: Contest[]): Contest[] {
-  return [...items].sort((a, b) => {
-    const aAnalysis = buildPublicContestAnalysis(a);
-    const bAnalysis = buildPublicContestAnalysis(b);
-    return (
-      bAnalysis.score - aAnalysis.score ||
-      new Date(a.apply_end_at).getTime() - new Date(b.apply_end_at).getTime()
-    );
-  });
-}
-
-function manageableDeadline(items: Contest[]): Contest[] {
+function manageableDeadline(items: readonly AnalysisCurationItem[]): AnalysisCurationItem[] {
   return [...items]
-    .filter((contest) => {
-      const days = getDaysUntilDeadline(contest.apply_end_at);
+    .filter((item) => {
+      const days = getDaysUntilDeadline(item.contest.apply_end_at);
       if (!Number.isFinite(days)) return false;
-      const analysis = buildPublicContestAnalysis(contest);
-      return days > 0 && days <= 14 && analysis.filters.prepWithinWeek;
+      return days > 0 && days <= 14 && item.analysis.filters.prepWithinWeek;
     })
-    .sort((a, b) => new Date(a.apply_end_at).getTime() - new Date(b.apply_end_at).getTime());
+    .sort(
+      (a, b) =>
+        new Date(a.contest.apply_end_at).getTime() -
+        new Date(b.contest.apply_end_at).getTime()
+    );
 }
 
 const CURATION_META = [
@@ -86,20 +109,20 @@ const CURATION_META = [
 export function AnalysisCurationSection({ contests }: AnalysisCurationSectionProps) {
   if (contests.length === 0) return null;
 
-  const scored = byScoreDesc(contests);
+  const analysisPool = buildAnalysisPool(contests);
   const sections = {
-    today: uniqueById(scored, 2),
+    today: uniqueById(analysisPool, 1),
     beginner: uniqueById(
-      scored.filter((contest) => buildPublicContestAnalysis(contest).filters.beginnerRecommended),
-      2
+      analysisPool.filter((item) => item.analysis.filters.beginnerRecommended),
+      1
     ),
     portfolio: uniqueById(
-      scored.filter((contest) => buildPublicContestAnalysis(contest).filters.portfolioHigh),
-      2
+      analysisPool.filter((item) => item.analysis.filters.portfolioHigh),
+      1
     ),
-    deadline: uniqueById(manageableDeadline(contests), 2),
+    deadline: uniqueById(manageableDeadline(analysisPool), 1),
   };
-  const topTen = uniqueById(scored, 10);
+  const topTen = analysisPool.slice(0, 5);
 
   return (
     <section className="py-12">
@@ -160,7 +183,7 @@ export function AnalysisCurationSection({ contests }: AnalysisCurationSectionPro
         <div className="mt-8 border-t border-gray-100 pt-6">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div>
-              <h3 className="text-base font-bold text-gray-900">공모전집 분석 점수 TOP 10</h3>
+              <h3 className="text-base font-bold text-gray-900">공모전집 분석 점수 TOP 5</h3>
               <p className="mt-0.5 text-xs text-gray-500">
                 상금, 기관 신뢰도, 포트폴리오성, 준비 난이도, 마감 여유를 종합했습니다.
               </p>
@@ -170,8 +193,8 @@ export function AnalysisCurationSection({ contests }: AnalysisCurationSectionPro
             </Link>
           </div>
           <ol className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
-            {topTen.map((contest, index) => {
-              const analysis = buildPublicContestAnalysis(contest);
+            {topTen.map((item, index) => {
+              const { contest, analysis } = item;
               return (
                 <li key={contest.id}>
                   <Link
