@@ -275,6 +275,8 @@ test("contest detail uses poster fallback, share button, and bottom ad slot", ()
 test("SEO and contact surfaces describe decision support with domain email", () => {
   const rootLayout = readSource("src/app/layout.tsx");
   assert.match(rootLayout, /일정, 혜택, 지원 조건, 준비 난이도/);
+  assert.match(rootLayout, /naver-site-verification/);
+  assert.match(rootLayout, /82e3643c38266ba2980f53fa8c875102b0d090fe/);
 
   const contactPage = readSource("src/app/(main)/contact/page.tsx");
   assert.match(contactPage, /info@gongmozip\.com/);

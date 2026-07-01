@@ -8,6 +8,7 @@ const ADSENSE_CLIENT_ID =
 const ADSENSE_SCRIPT_SRC = ADSENSE_CLIENT_ID
   ? `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`
   : null;
+const NAVER_SITE_VERIFICATION = "82e3643c38266ba2980f53fa8c875102b0d090fe";
 const SITE_DESCRIPTION =
   "공모전집은 공모전, 대외활동, 인턴십, 교육 정보를 일정, 혜택, 지원 조건, 준비 난이도 기준으로 정리해 지원 여부를 빠르게 판단할 수 있도록 돕는 공고 탐색 서비스입니다.";
 
@@ -50,6 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ko">
       <head>
+        <meta name="naver-site-verification" content={NAVER_SITE_VERIFICATION} />
         {ADSENSE_SCRIPT_SRC && (
           <script
             id="gongmozip-adsense"
