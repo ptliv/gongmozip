@@ -9,9 +9,11 @@ import { LivePlatformSection } from "@/components/home/LivePlatformSection";
 import { MainHero } from "@/components/home/MainHero";
 import { NewsletterSection } from "@/components/home/NewsletterSection";
 import { QuickExploreCards } from "@/components/home/QuickExploreCards";
+import { fetchPublishedCommunityPosts } from "@/lib/community";
 import { fetchContests } from "@/lib/supabase/contests";
 import { getDeadlineSoonContests, getLatestContests } from "@/lib/contest";
 import { summarizePrizePool } from "@/lib/prize";
+import type { CommunityPost } from "@/types/community";
 import type { Contest } from "@/types/contest";
 
 export const revalidate = 300;
@@ -25,6 +27,12 @@ export default async function HomePage() {
     console.error("[HomePage] fetchContests 실패:", error);
     return [];
   });
+  const communityPosts = await fetchPublishedCommunityPosts({ limit: 5 }).catch(
+    (error: unknown): CommunityPost[] => {
+      console.error("[HomePage] fetchPublishedCommunityPosts failed:", error);
+      return [];
+    }
+  );
   const deadlineSoonContests = getDeadlineSoonContests(allContests);
   const latestContests = getLatestContests(allContests, 10);
   const prizeSummary = summarizePrizePool(allContests);
@@ -45,7 +53,7 @@ export default async function HomePage() {
         <AnalysisCurationSection contests={allContests} />
         <ContestTableSection contests={latestContests} />
         <BriefingSection />
-        <BestStorySection />
+        <BestStorySection posts={communityPosts} />
         <GuideSection />
         <NewsletterSection />
         <AdSlot placement="main" className="mb-12" />

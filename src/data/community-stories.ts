@@ -9,15 +9,15 @@ export interface CommunityStory {
 export const communityStoriesMockData: readonly CommunityStory[] = [
   {
     id: "start-field",
-    title: "공모전 처음 준비하는데 어떤 분야부터 볼까요?",
-    href: "/#community",
+    title: "공모전을 처음 준비하는데 어떤 분야부터 볼까요?",
+    href: "/community",
     commentCount: 4,
     kind: "준비 질문",
   },
   {
     id: "team-portfolio",
     title: "팀원 모집할 때 포트폴리오 꼭 봐야 하나요?",
-    href: "/#community",
+    href: "/community/team",
     commentCount: 6,
     kind: "팀원 모집",
   },
@@ -37,7 +37,7 @@ export const communityStoriesMockData: readonly CommunityStory[] = [
   },
   {
     id: "proposal-priority",
-    title: "기획서 작성할 때 가장 중요한 항목은?",
+    title: "기획서 작성에서 가장 중요한 항목은?",
     href: "/guides/proposal-writing",
     commentCount: 12,
     kind: "수상 후기",

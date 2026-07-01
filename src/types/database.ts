@@ -18,13 +18,18 @@ import type {
   BenefitType,
   VerifiedLevel,
 } from "./contest";
+import type {
+  CommunityPost,
+  CommunityPostInsert,
+  CommunityPostUpdate,
+} from "./community";
 
 // ----------------------------------------------------------
 // contests 테이블 Row / Insert / Update
 // ----------------------------------------------------------
 
 /** DB에서 select()로 읽어온 그대로의 타입 */
-export interface ContestRow {
+export type ContestRow = {
   id: string;                        // uuid
   slug: string;                      // unique text
   title: string;
@@ -58,7 +63,7 @@ export interface ContestRow {
   view_count: number;                // integer
   created_at: string;                // timestamptz → ISO string
   updated_at: string;
-}
+};
 
 /**
  * insert()에 넘길 타입 — 서버 자동생성 필드 제외
@@ -87,6 +92,12 @@ export type Database = {
          * supabase-js GenericTable 제약 충족용 (외래키 관계 정의)
          * 현재 테이블 간 FK가 없으므로 빈 배열
          */
+        Relationships: [];
+      };
+      community_posts: {
+        Row: CommunityPost;
+        Insert: CommunityPostInsert;
+        Update: CommunityPostUpdate;
         Relationships: [];
       };
     };

@@ -183,6 +183,67 @@ test("home page wires platform sections and local editorial data", () => {
   assert.doesNotMatch(newsletter, /console\.(log|info|warn|error)/);
 });
 
+test("community supports authenticated writing and admin moderation", () => {
+  const requiredFiles = [
+    "src/app/(main)/community/page.tsx",
+    "src/app/(main)/community/team/page.tsx",
+    "src/app/(main)/community/write/page.tsx",
+    "src/app/(main)/community/write/actions.ts",
+    "src/app/(main)/login/page.tsx",
+    "src/app/(main)/login/actions.ts",
+    "src/app/auth/callback/route.ts",
+    "src/app/admin/community/page.tsx",
+    "src/app/admin/community/actions.ts",
+    "src/components/community/CommunityPostList.tsx",
+    "src/components/community/CommunityWriteForm.tsx",
+    "src/lib/community.ts",
+    "src/types/community.ts",
+    "supabase/migrations/20260630_add_community_posts.sql",
+  ];
+
+  for (const relativePath of requiredFiles) {
+    assert.ok(fs.existsSync(path.join(rootDir, relativePath)), `${relativePath} should exist`);
+  }
+
+  const migration = readSource("supabase/migrations/20260630_add_community_posts.sql");
+  for (const token of [
+    "create table if not exists community_posts",
+    "alter table community_posts enable row level security",
+    "status in ('pending','published','hidden','deleted')",
+    "kind in ('general','question','team','review')",
+    "auth.role() = 'authenticated'",
+    "status = 'pending'",
+  ]) {
+    assert.match(migration, new RegExp(token.replace(/[()]/g, "\\$&")));
+  }
+
+  const communityTypes = readSource("src/types/community.ts");
+  for (const token of ["CommunityPostStatus", "CommunityPostKind", "team", "published", "pending"]) {
+    assert.match(communityTypes, new RegExp(token));
+  }
+
+  const communityLib = readSource("src/lib/community.ts");
+  for (const token of [
+    "fetchPublishedCommunityPosts",
+    "fetchAdminCommunityPosts",
+    "createCommunityPost",
+    "updateCommunityPostStatus",
+  ]) {
+    assert.match(communityLib, new RegExp(token));
+  }
+
+  const writeAction = readSource("src/app/(main)/community/write/actions.ts");
+  assert.match(writeAction, /createSSRClient/);
+  assert.match(writeAction, /auth\.getUser/);
+  assert.match(writeAction, /redirect\("\/login\?next=\/community\/write"\)/);
+
+  const adminSidebar = readSource("src/components/admin/AdminSidebar.tsx");
+  assert.match(adminSidebar, /\/admin\/community/);
+
+  const header = readSource("src/components/layout/Header.tsx");
+  assert.match(header, /\/community/);
+});
+
 test("contest listing uses poster fallback and bottom ad slot", () => {
   const contestCard = readSource("src/components/contest/ContestCard.tsx");
   assert.match(contestCard, /FallbackImage/);

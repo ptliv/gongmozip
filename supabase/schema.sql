@@ -187,3 +187,63 @@ create or replace view contests_pending_review as
   from contests
   where verified_level = 0
   order by created_at desc;
+
+
+-- ----------------------------------------------------------
+-- 9. community_posts 테이블
+-- ----------------------------------------------------------
+
+create table if not exists community_posts (
+  id uuid primary key default gen_random_uuid(),
+  author_id uuid not null references auth.users(id) on delete cascade,
+  author_name text not null,
+  kind text not null default 'general',
+  status text not null default 'pending',
+  title text not null,
+  body text not null,
+  contest_title text,
+  contest_url text,
+  roles text[] not null default '{}',
+  deadline_at date,
+  contact_method text,
+  contact_value text,
+  comment_count integer not null default 0,
+  view_count integer not null default 0,
+  published_at timestamptz,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint community_posts_kind_check check (
+    kind in ('general','question','team','review')
+  ),
+  constraint community_posts_status_check check (
+    status in ('pending','published','hidden','deleted')
+  )
+);
+
+create index if not exists idx_community_posts_status_created
+  on community_posts (status, created_at desc);
+create index if not exists idx_community_posts_kind_status_created
+  on community_posts (kind, status, created_at desc);
+
+drop trigger if exists community_posts_updated_at on community_posts;
+create trigger community_posts_updated_at
+  before update on community_posts
+  for each row execute function update_updated_at_column();
+
+alter table community_posts enable row level security;
+
+create policy "Public: read published community posts"
+  on community_posts for select
+  using (status = 'published');
+
+create policy "Authenticated: read own community posts"
+  on community_posts for select
+  using (auth.uid() = author_id);
+
+create policy "Authenticated: create pending community posts"
+  on community_posts for insert
+  with check (
+    auth.role() = 'authenticated'
+    and auth.uid() = author_id
+    and status = 'pending'
+  );

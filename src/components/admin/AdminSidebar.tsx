@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
   ClipboardList,
+  MessageSquareText,
   ArrowLeft,
   Trophy,
   LogOut,
@@ -24,6 +25,12 @@ const NAV = [
     label: "공고 관리",
     href: "/admin/contests",
     icon: ClipboardList,
+    exact: false,
+  },
+  {
+    label: "커뮤니티 관리",
+    href: "/admin/community",
+    icon: MessageSquareText,
     exact: false,
   },
 ];

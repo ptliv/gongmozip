@@ -22,7 +22,7 @@ const NAV_LINKS = [
   { href: "/deadline", label: "마감 관리", icon: Clock3 },
   { href: "/guides", label: "준비 가이드", icon: BookOpenCheck },
   { href: "/#briefing", label: "공모전 브리핑", icon: FileText },
-  { href: "/#community", label: "커뮤니티", icon: MessageSquareText },
+  { href: "/community", label: "커뮤니티", icon: MessageSquareText },
   { href: "/bookmarks", label: "북마크", icon: Bookmark },
 ] as const;
 
